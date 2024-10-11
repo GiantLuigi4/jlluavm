@@ -1,0 +1,22 @@
+plugins {
+    id 'java'
+}
+
+group = 'tfc'
+version = '1.0-SNAPSHOT'
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    testImplementation platform('org.junit:junit-bom:5.9.1')
+    testImplementation 'org.junit.jupiter:junit-jupiter'
+//    implementation group: 'org.bytedeco', name: 'llvm-platform', version: '17.0.6-1.5.10'
+    // https://mvnrepository.com/artifact/org.bytedeco/llvm-platform
+    implementation group: 'org.bytedeco', name: 'llvm-platform', version: '8.0.0-1.5.1'
+}
+
+test {
+    useJUnitPlatform()
+}
