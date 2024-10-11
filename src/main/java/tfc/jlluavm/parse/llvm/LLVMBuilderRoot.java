@@ -1,4 +1,4 @@
-package tfc.jlluavm.parse;
+package tfc.jlluavm.parse.llvm;
 
 import org.bytedeco.javacpp.BytePointer;
 import org.bytedeco.javacpp.Pointer;
@@ -106,5 +106,21 @@ public class LLVMBuilderRoot {
                 builder, value,
                 toType, "cast" + toType.address() + "_" + (load_indx++)
         ));
+    }
+
+    public LLVMBuilderRef direct() {
+        return builder;
+    }
+
+    public String nextDescriminator(String of) {
+        return of + "_" + (load_indx++);
+    }
+
+    public void dump() {
+        LLVMDumpModule(module);
+    }
+
+    public LLVMModuleRef getModule() {
+        return module;
     }
 }

@@ -12,7 +12,7 @@ public class Test {
             BufferedStream<LUAToken> tokenStream = tokenizer.tokenStream("""
                     local var0 = 5
                     local var1 = 16
-                    return var0
+                    return var0 + (var1 * 2) + 3 / 2 * 2
                     """);
 
             long nt = System.nanoTime();

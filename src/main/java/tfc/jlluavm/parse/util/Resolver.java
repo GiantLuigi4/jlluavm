@@ -10,11 +10,14 @@ public class Resolver {
         OPERATION,
         GENERIC,
         FUNCTION,
-        RETURN;
+        RETURN,
+        EOF;
     }
 
     public static ThingType nextThing(BufferedStream<LUAToken> stream, int index) {
         LUAToken current = stream.peekFuture(index);
+
+        if (current == null) return ThingType.EOF;
 
         if (current.text.equals("function"))
             return ThingType.FUNCTION;
@@ -40,12 +43,6 @@ public class Resolver {
             default -> ThingType.GENERIC;
         };
     }
-
-    // order:
-    // Exponentiation (^)
-    // Unary operators (not, #, ~, etc.)
-    // Multiplication and division (*, /, //, etc.)
-    // Addition and subtraction (+, -)
 
     public static ThingType nextThing(BufferedStream<LUAToken> stream) {
         return nextThing(stream, 0);

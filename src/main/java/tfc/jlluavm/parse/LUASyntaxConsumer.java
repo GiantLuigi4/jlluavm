@@ -3,6 +3,8 @@ package tfc.jlluavm.parse;
 import org.bytedeco.javacpp.BytePointer;
 import org.bytedeco.javacpp.PointerPointer;
 import org.bytedeco.llvm.LLVM.*;
+import tfc.jlluavm.parse.llvm.LLVMBuilderRoot;
+import tfc.jlluavm.parse.llvm.LLVMFunctionBuilder;
 import tfc.jlluavm.parse.util.BufferedStream;
 import tfc.jlluavm.parse.util.Resolver;
 
@@ -120,29 +122,38 @@ public class LUASyntaxConsumer {
 
     private LLVMValueRef acceptSingleValue(BufferedStream<LUAToken> tokenStream) {
         if (tokenStream.current().type.equals("numeric")) {
-            // TODO: expressions
             return root.loadDouble(Double.parseDouble(tokenStream.current().text));
         } else if (tokenStream.current().type.equals("literal")) {
             // TODO: scoped access to variables
             return functionStack.peek().getVariable(tokenStream.current().text);
+        } else if (tokenStream.current().text.equals("(")) {
+            tokenStream.advance();
+            LLVMValueRef ref = acceptValue(tokenStream);
+            tokenStream.advance();
+            return ref;
         }
         return null;
     }
 
-    private boolean checkOperator(BufferedStream<LUAToken> tokenStream) {
-        LUAToken token = tokenStream.peekFuture(1);
-        if (token == null) return false;
-        Resolver.ThingType type = Resolver.nextThing(tokenStream, 1);
-        return type == Resolver.ThingType.OPERATION;
+    private LLVMValueRef acceptValue(BufferedStream<LUAToken> tokenStream) {
+        return acceptValue(new ExpressionBuilder(), tokenStream);
     }
 
-    private LLVMValueRef acceptValue(BufferedStream<LUAToken> tokenStream) {
+    private LLVMValueRef acceptValue(ExpressionBuilder builder, BufferedStream<LUAToken> tokenStream) {
         System.out.println(tokenStream.current().text);
         // TODO: calls, array access
         // TODO: functions are values!
-        // TODO: operation tree builder
         LLVMValueRef ref = acceptSingleValue(tokenStream);
-        if (ref != null) return ref;
+        if (ref != null) {
+            builder.addValue(ref);
+            while (Resolver.nextThing(tokenStream, 1) == Resolver.ThingType.OPERATION) {
+                tokenStream.advance();
+                builder.addOperation(tokenStream.current().text);
+                tokenStream.advance();
+                builder.addValue(acceptSingleValue(tokenStream));
+            }
+            return builder.build(root);
+        }
         throw new RuntimeException("NYI");
     }
 
@@ -162,7 +173,7 @@ public class LUASyntaxConsumer {
     private final BytePointer error = new BytePointer();
 
     public void finish() {
-        LLVMDumpModule(root.module);
+        root.dump();
 
         LLVMFunctionBuilder functionEntry = functionStack.peek();
 
@@ -199,18 +210,18 @@ public class LUASyntaxConsumer {
 
         LLVMAddGVNPass(pass);
         LLVMAddCFGSimplificationPass(pass);
-        LLVMRunPassManager(pass, root.module);
+        LLVMRunPassManager(pass, root.getModule());
 
         // cleanup
         LLVMDisposePassManager(pass);
         root.disposeBuilder();
 
-        LLVMDumpModule(root.module);
+        root.dump();
 
         // TODO: REMOVE! TESTING ONLY!
         LLVMExecutionEngineRef engine = new LLVMExecutionEngineRef();
         LLVMMCJITCompilerOptions options = new LLVMMCJITCompilerOptions();
-        if (LLVMCreateMCJITCompilerForModule(engine, root.module, options, 3, error) != 0) {
+        if (LLVMCreateMCJITCompilerForModule(engine, root.getModule(), options, 3, error) != 0) {
             System.err.println("Failed to create JIT compiler: " + error.getString());
             LLVMDisposeMessage(error);
             return;

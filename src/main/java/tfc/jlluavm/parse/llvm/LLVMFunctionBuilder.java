@@ -1,4 +1,4 @@
-package tfc.jlluavm.parse;
+package tfc.jlluavm.parse.llvm;
 
 import org.bytedeco.llvm.LLVM.*;
 import org.bytedeco.llvm.global.LLVM;
