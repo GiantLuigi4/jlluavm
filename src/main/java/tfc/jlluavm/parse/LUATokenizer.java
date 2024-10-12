@@ -69,6 +69,7 @@ public class LUATokenizer {
                     int type;
                     if (Character.isLetter(cChar)) type = 1;
                     else if (Character.isDigit(cChar)) type = 2;
+                    else if (cChar == '!') type = 5;
                     else type = 3;
 
                     StringBuilder built = new StringBuilder();
@@ -93,6 +94,7 @@ public class LUATokenizer {
                             case 1 -> !Character.isLetterOrDigit(cChar);
                             case 2 -> !Character.isDigit(cChar);
                             case 3 -> true; // when does this case occur, actually?
+                            case 5 -> !Character.isDigit(cChar); // tmp arg; for removal
                             default -> throw new RuntimeException("NYI or invalid");
                         };
                         if (bV) break;
@@ -103,6 +105,7 @@ public class LUATokenizer {
                                 case 2 -> "numeric";
                                 case 3 -> "unknown_symbol";
                                 case 4 -> "string";
+                                case 5 -> "tmp_arg";
                                 default -> throw new RuntimeException("");
                             },
                             built.toString()

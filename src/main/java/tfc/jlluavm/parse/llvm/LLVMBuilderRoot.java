@@ -114,7 +114,7 @@ public class LLVMBuilderRoot {
     public LLVMValueRef cast(LLVMValueRef value, LLVMTypeRef toType) {
         return trackValue(LLVM.LLVMBuildBitCast(
                 builder, value,
-                toType, "cast" + toType.address() + "_" + (load_indx++)
+                toType, nextDiscriminator("cast")
         ));
     }
 
@@ -122,7 +122,7 @@ public class LLVMBuilderRoot {
         return builder;
     }
 
-    public String nextDescriminator(String of) {
+    public String nextDiscriminator(String of) {
         return of + "_" + (load_indx++);
     }
 
@@ -135,7 +135,7 @@ public class LLVMBuilderRoot {
     }
 
     public LLVMValueRef alloca(LLVMTypeRef type) {
-        return trackValue(LLVM.LLVMBuildAlloca(builder, type, nextDescriminator("alloca")));
+        return trackValue(LLVM.LLVMBuildAlloca(builder, type, nextDiscriminator("alloca")));
     }
 
     public LLVMValueRef setValue(LLVMValueRef ptr, LLVMValueRef value) {
@@ -143,35 +143,35 @@ public class LLVMBuilderRoot {
     }
 
     public LLVMValueRef getValue(LLVMTypeRef type, LLVMValueRef ptr) {
-        return trackValue(LLVM.LLVMBuildLoad2(builder, type, ptr, nextDescriminator("load")));
+        return trackValue(LLVM.LLVMBuildLoad2(builder, type, ptr, nextDiscriminator("load")));
     }
 
     public LLVMValueRef sum(LLVMValueRef interm, LLVMValueRef step) {
-        return trackValue(LLVM.LLVMBuildFAdd(builder, interm, step, nextDescriminator("add")));
+        return trackValue(LLVM.LLVMBuildFAdd(builder, interm, step, nextDiscriminator("add")));
     }
 
     public LLVMValueRef compareLE(LLVMValueRef lh, LLVMValueRef rh) {
-        return trackValue(LLVM.LLVMBuildFCmp(builder, LLVM.LLVMRealOLE, lh, rh, nextDescriminator("comp")));
+        return trackValue(LLVM.LLVMBuildFCmp(builder, LLVM.LLVMRealOLE, lh, rh, nextDiscriminator("comp")));
     }
 
     public LLVMValueRef compareL(LLVMValueRef lh, LLVMValueRef rh) {
-        return trackValue(LLVM.LLVMBuildFCmp(builder, LLVMRealOLT, lh, rh, nextDescriminator("comp")));
+        return trackValue(LLVM.LLVMBuildFCmp(builder, LLVMRealOLT, lh, rh, nextDiscriminator("comp")));
     }
 
     public LLVMValueRef compareG(LLVMValueRef lh, LLVMValueRef rh) {
-        return trackValue(LLVM.LLVMBuildFCmp(builder, LLVMRealOGT, lh, rh, nextDescriminator("comp")));
+        return trackValue(LLVM.LLVMBuildFCmp(builder, LLVMRealOGT, lh, rh, nextDiscriminator("comp")));
     }
 
     public LLVMValueRef compareE(LLVMValueRef lh, LLVMValueRef rh) {
-        return trackValue(LLVM.LLVMBuildFCmp(builder, LLVMRealOEQ, lh, rh, nextDescriminator("comp")));
+        return trackValue(LLVM.LLVMBuildFCmp(builder, LLVMRealOEQ, lh, rh, nextDiscriminator("comp")));
     }
 
     public LLVMValueRef compareNE(LLVMValueRef lh, LLVMValueRef rh) {
-        return trackValue(LLVM.LLVMBuildFCmp(builder, LLVMRealONE, lh, rh, nextDescriminator("comp")));
+        return trackValue(LLVM.LLVMBuildFCmp(builder, LLVMRealONE, lh, rh, nextDiscriminator("comp")));
     }
 
     public LLVMValueRef compareGE(LLVMValueRef lh, LLVMValueRef rh) {
-        return trackValue(LLVM.LLVMBuildFCmp(builder, LLVM.LLVMRealOGE, lh, rh, nextDescriminator("comp")));
+        return trackValue(LLVM.LLVMBuildFCmp(builder, LLVM.LLVMRealOGE, lh, rh, nextDiscriminator("comp")));
     }
 
     public void jump(LLVMBasicBlockRef start) {

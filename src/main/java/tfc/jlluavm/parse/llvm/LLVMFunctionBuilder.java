@@ -1,5 +1,6 @@
 package tfc.jlluavm.parse.llvm;
 
+import org.bytedeco.javacpp.BytePointer;
 import org.bytedeco.llvm.LLVM.*;
 import org.bytedeco.llvm.global.LLVM;
 
@@ -58,27 +59,13 @@ public class LLVMFunctionBuilder {
     public LLVMValueRef getParam(int index) {
         LLVMValueRef ref = params.get(index);
         if (ref == null) {
+            ref = LLVMHelper.getParam(function, index);
             params.put(
                     index,
-                    ref = LLVMHelper.getParam(function, index)
+                    ref = builder.cast(ref, builder.DOUBLE)
             );
         }
         return ref;
-    }
-
-    HashMap<String, LLVMValueRef> variables = new HashMap<>();
-
-    public void addVariable(String name, LLVMValueRef value) {
-        LLVMValueRef refr = variables.get(name);
-        if (refr == null) {
-            LLVMValueRef ptr = builder.alloca(builder.LONG);
-            builder.setValue(ptr, builder.cast(value, builder.LONG));
-            variables.put(name, ptr);
-        } else builder.setValue(refr, builder.cast(value, builder.LONG));
-    }
-
-    public LLVMValueRef getVariable(LLVMTypeRef type, String var) {
-        return builder.cast(builder.getValue(builder.LONG, variables.get(var)), type);
     }
 
     public void ret(LLVMValueRef ref) {
@@ -109,5 +96,9 @@ public class LLVMFunctionBuilder {
 
     public LLVMBasicBlockRef activeBlock() {
         return active;
+    }
+
+    public String getName() {
+        return name;
     }
 }

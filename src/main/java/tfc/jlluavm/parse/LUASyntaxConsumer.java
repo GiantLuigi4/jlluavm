@@ -4,8 +4,11 @@ import org.bytedeco.javacpp.BytePointer;
 import org.bytedeco.javacpp.PointerPointer;
 import org.bytedeco.llvm.LLVM.*;
 import org.bytedeco.llvm.global.LLVM;
+import org.lwjgl.system.Library;
 import tfc.jlluavm.parse.llvm.LLVMBuilderRoot;
 import tfc.jlluavm.parse.llvm.LLVMFunctionBuilder;
+import tfc.jlluavm.parse.scopes.GlobalScope;
+import tfc.jlluavm.parse.scopes.Scope;
 import tfc.jlluavm.parse.util.BufferedStream;
 import tfc.jlluavm.parse.util.Resolver;
 
@@ -14,48 +17,54 @@ import java.util.ArrayList;
 
 import static org.bytedeco.llvm.global.LLVM.*;
 
+import org.lwjgl.system.JNI;
+
 public class LUASyntaxConsumer {
     static {
         LLVMInitializeNativeTarget();
         LLVMInitializeNativeAsmPrinter();
     }
 
+    static int loopEliminationFactor = 2;
+
     LLVMBuilderRoot root;
     ArrayList<LLVMFunctionBuilder> finishedFunctions = new ArrayList<>();
     ArrayDeque<LLVMFunctionBuilder> functionStack = new ArrayDeque<>();
+    GlobalScope global;
 
     public LUASyntaxConsumer() {
         root = new LLVMBuilderRoot(
                 "module_lua_jit_" + toString().replace("@", "")
         );
 
+        global = new GlobalScope(root);
         LLVMTypeRef params = root.trackValue(LLVMFunctionType(
                 root.LONG,
-                (PointerPointer) null,
-                0, 0
+                root.LONG,
+                1, 0
         ));
         functionStack.push(root.function(
                 "$$module_lua_jit_$_root_entry_$_" + toString().replace("@", ""),
                 params
         ).buildRoot());
+        System.out.println("START SCOPE");
+        scopes.push(global);
     }
-
-    int scope = 0;
 
     private void pushScope() {
-        scope++;
-
         System.out.println("START SCOPE");
+        scopes.push(new Scope(global, scopes.peek(), root, functionStack.peek()));
     }
+
+    ArrayDeque<Scope> scopes = new ArrayDeque<>();
 
     private void acceptBody(BufferedStream<LUAToken> tokenStream) {
         acceptBody(true, tokenStream);
     }
 
     private void popScope() {
+        scopes.pop();
         System.out.println("END SCOPE");
-
-        scope--;
     }
 
     private void acceptBody(boolean withScope, BufferedStream<LUAToken> tokenStream) {
@@ -128,9 +137,7 @@ public class LUASyntaxConsumer {
         System.out.print(" = ");
         LLVMValueRef value = acceptValue(tokenStream);
         // TODO: global variables (per file by default, might need to be configurable though)
-        if (local) {
-            functionStack.peek().addVariable(name, value);
-        } else throw new RuntimeException("NYI: Globals");
+        scopes.peek().addVariable(local, name, value);
         return name;
     }
 
@@ -145,12 +152,15 @@ public class LUASyntaxConsumer {
             return root.loadDouble(Double.parseDouble(tokenStream.current().text));
         } else if (tokenStream.current().type.equals("literal")) {
             // TODO: scoped access to variables
-            return functionStack.peek().getVariable(root.DOUBLE, tokenStream.current().text);
+            return scopes.peek().getVariable(root.DOUBLE, tokenStream.current().text);
         } else if (tokenStream.current().text.equals("(")) {
             tokenStream.advance();
             LLVMValueRef ref = acceptValue(tokenStream);
             tokenStream.advance();
             return ref;
+            // TODO: remove
+        } else if (tokenStream.current().type.equals("tmp_arg")) {
+            return functionStack.peek().getParam(Integer.parseInt(tokenStream.current().text.substring(1)));
         }
         return null;
     }
@@ -174,7 +184,7 @@ public class LUASyntaxConsumer {
             }
             return builder.build(root);
         }
-        throw new RuntimeException("NYI");
+        throw new RuntimeException("huh?");
     }
 
     private final BytePointer error = new BytePointer();
@@ -222,14 +232,14 @@ public class LUASyntaxConsumer {
             {
                 // header
                 builder.buildBlock(startPos);
-                LLVMValueRef counter = builder.getVariable(root.DOUBLE, varName);
+                LLVMValueRef counter = scopes.peek().getVariable(root.DOUBLE, varName);
                 LLVMValueRef cond = root.compareLE(counter, terminator);
                 root.conditionalJump(cond, bodyPos, block);
 
                 // body
                 builder.buildBlock(bodyPos);
                 counter = root.sum(counter, step);
-                builder.addVariable(varName, counter);
+                scopes.peek().addVariable(true, varName, counter);
                 acceptBody(false, tokenStream);
                 root.jump(startPos);
             }
@@ -237,14 +247,14 @@ public class LUASyntaxConsumer {
             {
                 // header
                 builder.buildBlock(startNeg);
-                LLVMValueRef counter = builder.getVariable(root.DOUBLE, varName);
+                LLVMValueRef counter = scopes.peek().getVariable(root.DOUBLE, varName);
                 LLVMValueRef cond = root.compareGE(counter, terminator);
                 root.conditionalJump(cond, bodyNeg, block);
 
                 // body
                 builder.buildBlock(bodyNeg);
                 counter = root.sum(counter, step);
-                builder.addVariable(varName, counter);
+                scopes.peek().addVariable(true, varName, counter);
                 acceptBody(false, tokenStream);
                 root.jump(startNeg);
             }
@@ -284,7 +294,13 @@ public class LUASyntaxConsumer {
         }
     }
 
+    static {
+        Library.initialize();
+    }
+
     public void finish() {
+        popScope();
+
         root.dump();
 
         LLVMFunctionBuilder functionEntry = functionStack.peek();
@@ -302,25 +318,37 @@ public class LUASyntaxConsumer {
 
         long nt = System.nanoTime();
         LLVMPassManagerRef pass = LLVMCreatePassManager();
-
 //        LLVMAddStripSymbolsPass(pass);
-        LLVMAddCFGSimplificationPass(pass);
+
+//        LLVMAddCFGSimplificationPass(pass);
         LLVMAddSimplifyLibCallsPass(pass);
         LLVMAddPartiallyInlineLibCallsPass(pass);
         LLVMAddEarlyCSEMemSSAPass(pass);
 
         LLVMAddReassociatePass(pass);
         LLVMAddPromoteMemoryToRegisterPass(pass);
-        LLVMAddInstructionCombiningPass(pass);
+        LLVMAddLICMPass(pass);
 
         LLVMAddLoopRotatePass(pass);
         LLVMAddLoopIdiomPass(pass);
-        LLVMAddIndVarSimplifyPass(pass);
+
+        LLVMAddInstructionCombiningPass(pass);
+
+        for (int i = 0; i < loopEliminationFactor; i++) {
+            LLVMAddLoopUnrollPass(pass);
+
+            LLVMAddNewGVNPass(pass);
+            LLVMAddCFGSimplificationPass(pass);
+
+            LLVMAddReassociatePass(pass);
+            LLVMAddInstructionCombiningPass(pass);
+        }
+
         LLVMAddLoopUnswitchPass(pass);
         LLVMAddLoopDeletionPass(pass);
-        LLVMAddLoopUnrollPass(pass);
-        LLVMAddLoopVectorizePass(pass);
         LLVMAddScalarizerPass(pass);
+        LLVMAddLoopVectorizePass(pass);
+
         LLVMAddMemCpyOptPass(pass);
         LLVMAddConstantMergePass(pass);
 
@@ -330,24 +358,19 @@ public class LUASyntaxConsumer {
 //        LLVMAddGVNPass(pass);
         LLVMAddNewGVNPass(pass);
 
-//        LLVMAddIPSCCPPass(pass);
-//        LLVMAddLICMPass(pass);
-//        LLVMAddSCCPPass(pass);
 //        LLVMAddEarlyCSEPass(pass);
         LLVMAddDeadStoreEliminationPass(pass);
         LLVMAddMergedLoadStoreMotionPass(pass);
-//        LLVMAddPruneEHPass(pass);
-//        LLVMAddAggressiveDCEPass(pass);
+        LLVMAddAggressiveDCEPass(pass); // dead code elimination
+//        LLVMAddBitTrackingDCEPass(pass);
 
-        LLVMAddBitTrackingDCEPass(pass);
+//        LLVMAddDemoteMemoryToRegisterPass(pass); // Demotes every possible value to memory
+        LLVMAddInstructionCombiningPass(pass);
 
-        LLVMAddCFGSimplificationPass(pass);
-
-        LLVMRunPassManager(pass, root.getModule());
+//        LLVMRunPassManager(pass, root.getModule());
         long nt1 = System.nanoTime();
         System.out.println("Optimization took: " + (nt1 - nt) + " ns");
 
-//        LLVMAddDemoteMemoryToRegisterPass(pass); // Demotes every possible value to memory
 
         // cleanup
         LLVMDisposePassManager(pass);
@@ -364,11 +387,17 @@ public class LUASyntaxConsumer {
             return;
         }
 
-        PointerPointer<LLVMGenericValueRef> pointer = new PointerPointer<>();
-        LLVMGenericValueRef result = LLVMRunFunction(engine, functionEntry.function, /* argumentCount */ 0, pointer);
+        long addr = LLVM.LLVMGetFunctionAddress(engine, functionEntry.getName());
+        long argV = Double.doubleToLongBits(2);
+
+        nt = System.nanoTime();
+        long result = JNI.invokePP(argV, addr);
+        nt1 = System.nanoTime();
+        System.out.println("Execution took: " + (nt1 - nt) + " ns");
+
         System.out.println();
         System.out.println("Running entry() with MCJIT...");
-        System.out.println("Result: " + Double.longBitsToDouble(LLVMGenericValueToInt(result, /* signExtend */ 0)));
+        System.out.println("Result: " + Double.longBitsToDouble(result));
     }
 
     public void acceptCurrent(BufferedStream<LUAToken> tokenStream) {

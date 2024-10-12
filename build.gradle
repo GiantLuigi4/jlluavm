@@ -5,8 +5,12 @@ plugins {
 group = 'tfc'
 version = '1.0-SNAPSHOT'
 
+project.ext.lwjglVersion = "3.3.5-SNAPSHOT"
+project.ext.lwjglNatives = "natives-windows"
+
 repositories {
     mavenCentral()
+    maven { url "https://oss.sonatype.org/content/repositories/snapshots/" }
 }
 
 dependencies {
@@ -16,6 +20,11 @@ dependencies {
     // https://mvnrepository.com/artifact/org.bytedeco/llvm-platform
     // https://github.com/bytedeco/javacpp-presets/tree/helloworld/llvm
     implementation group: 'org.bytedeco', name: 'llvm-platform', version: '8.0.0-1.5.1'
+
+    implementation platform("org.lwjgl:lwjgl-bom:$lwjglVersion")
+
+    implementation "org.lwjgl:lwjgl"
+    runtimeOnly "org.lwjgl:lwjgl::$lwjglNatives"
 }
 
 test {

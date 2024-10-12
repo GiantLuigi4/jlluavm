@@ -22,16 +22,16 @@ public class ExpressionBuilder {
 
                     switch (op) {
                         case MUL -> {
-                            refs.add(i, builderRoot.trackValue(LLVM.LLVMBuildFMul(builderRoot.direct(), refL, refR, builderRoot.nextDescriminator("mul"))));
+                            refs.add(i, builderRoot.trackValue(LLVM.LLVMBuildFMul(builderRoot.direct(), refL, refR, builderRoot.nextDiscriminator("mul"))));
                         }
                         case DIV -> {
-                            refs.add(i, builderRoot.trackValue(LLVM.LLVMBuildFDiv(builderRoot.direct(), refL, refR, builderRoot.nextDescriminator("div"))));
+                            refs.add(i, builderRoot.trackValue(LLVM.LLVMBuildFDiv(builderRoot.direct(), refL, refR, builderRoot.nextDiscriminator("div"))));
                         }
                         case ADD -> {
-                            refs.add(i, builderRoot.trackValue(LLVM.LLVMBuildFAdd(builderRoot.direct(), refL, refR, builderRoot.nextDescriminator("add"))));
+                            refs.add(i, builderRoot.trackValue(LLVM.LLVMBuildFAdd(builderRoot.direct(), refL, refR, builderRoot.nextDiscriminator("add"))));
                         }
                         case SUB -> {
-                            refs.add(i, builderRoot.trackValue(LLVM.LLVMBuildFSub(builderRoot.direct(), refL, refR, builderRoot.nextDescriminator("sub"))));
+                            refs.add(i, builderRoot.trackValue(LLVM.LLVMBuildFSub(builderRoot.direct(), refL, refR, builderRoot.nextDiscriminator("sub"))));
                         }
 
                         case GE -> {
