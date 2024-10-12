@@ -11,7 +11,7 @@ public class LUATokenizer {
     });
 
     LUAToken[] tokens = LUAToken.toTokens("symbols", new String[]{
-            "+", "- ", "*", "/", "%", "^", "#",
+            "+", "-", "*", "/", "%", "^", "#",
             "==", "~=", "<=", ">=", "<", ">", "=",
             "(", ") ", "{", "}", "[", "]",
             ";", ": ", ",", ".", "..", "...",
@@ -44,7 +44,10 @@ public class LUATokenizer {
                     for (LUAToken keyword : keywords) {
                         if (text.startsWith(keyword.text, textIndex)) {
                             textIndex += keyword.text.length();
-                            return keyword;
+                            if (
+                                    !Character.isLetterOrDigit(text.charAt(textIndex))
+                            ) return keyword;
+                            else textIndex -= keyword.text.length();
                         }
                     }
                 } else if (!Character.isDigit(cChar) && !Character.isWhitespace(cChar)) {

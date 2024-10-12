@@ -183,6 +183,10 @@ public class LUASyntaxConsumer {
                 builder.addValue(acceptSingleValue(tokenStream));
             }
             return builder.build(root);
+        } else if (tokenStream.current().text.equals("true")) {
+            return root.CONST_TRUE;
+        } else if (tokenStream.current().text.equals("false")) {
+            return root.CONST_FALSE;
         }
         throw new RuntimeException("huh?");
     }
@@ -266,6 +270,10 @@ public class LUASyntaxConsumer {
     }
 
     private void acceptIf(BufferedStream<LUAToken> tokenStream) {
+        acceptIf(tokenStream, null);
+    }
+
+    private void acceptIf(BufferedStream<LUAToken> tokenStream, LLVMBasicBlockRef conclusion) {
         tokenStream.advance(); // if
 
         LLVMValueRef condition = acceptValue(tokenStream);
@@ -273,6 +281,8 @@ public class LUASyntaxConsumer {
         LLVMBasicBlockRef from = builder.activeBlock();
         LLVMBasicBlockRef body = builder.createBlock("body");
         LLVMBasicBlockRef to = builder.createBlock("to");
+        boolean isMaster = conclusion == null;
+        if (conclusion == null) conclusion = builder.createBlock("conclusion");
 
         {
             tokenStream.advance();
@@ -281,7 +291,7 @@ public class LUASyntaxConsumer {
             tokenStream.advance();
             builder.buildBlock(body);
             acceptBody(true, tokenStream);
-            root.jump(to);
+            root.jump(conclusion);
         }
 
         builder.buildBlock(from);
@@ -289,13 +299,26 @@ public class LUASyntaxConsumer {
 
         builder.buildBlock(to);
 
-        if (tokenStream.current().equals("elseif")) {
-            acceptIf(tokenStream);
+        if (tokenStream.current().text.equals("elseif")) {
+            acceptIf(tokenStream, conclusion);
+        } else if (tokenStream.current().text.equals("else")) {
+            tokenStream.advance();
+            acceptBody(true, tokenStream);
+        }
+
+        if (isMaster) {
+            root.jump(conclusion);
+            builder.buildBlock(conclusion);
         }
     }
 
     static {
         Library.initialize();
+    }
+
+    private void acceptDo(BufferedStream<LUAToken> tokenStream) {
+        tokenStream.advance();
+        acceptBody(true, tokenStream);
     }
 
     public void finish() {
@@ -317,10 +340,12 @@ public class LUASyntaxConsumer {
         root.verify();
 
         long nt = System.nanoTime();
+//        LLVMInitializeAggressiveInstCombiner(LLVM.LLVMGetGlobalPassRegistry());
         LLVMPassManagerRef pass = LLVMCreatePassManager();
 //        LLVMAddStripSymbolsPass(pass);
 
 //        LLVMAddCFGSimplificationPass(pass);
+        LLVMAddAggressiveDCEPass(pass); // dead code elimination
         LLVMAddSimplifyLibCallsPass(pass);
         LLVMAddPartiallyInlineLibCallsPass(pass);
         LLVMAddEarlyCSEMemSSAPass(pass);
@@ -359,15 +384,16 @@ public class LUASyntaxConsumer {
         LLVMAddNewGVNPass(pass);
 
 //        LLVMAddEarlyCSEPass(pass);
-        LLVMAddDeadStoreEliminationPass(pass);
-        LLVMAddMergedLoadStoreMotionPass(pass);
-        LLVMAddAggressiveDCEPass(pass); // dead code elimination
 //        LLVMAddBitTrackingDCEPass(pass);
 
-//        LLVMAddDemoteMemoryToRegisterPass(pass); // Demotes every possible value to memory
-        LLVMAddInstructionCombiningPass(pass);
+//        LLVMAddDeadStoreEliminationPass(pass);
+//        LLVMAddMergedLoadStoreMotionPass(pass);
+//        LLVMAddAggressiveDCEPass(pass); // dead code elimination
 
-//        LLVMRunPassManager(pass, root.getModule());
+//        LLVMAddInstructionCombiningPass(pass);
+
+//        LLVMAddDemoteMemoryToRegisterPass(pass); // Demotes every possible value to memory
+        LLVMRunPassManager(pass, root.getModule());
         long nt1 = System.nanoTime();
         System.out.println("Optimization took: " + (nt1 - nt) + " ns");
 
@@ -388,7 +414,7 @@ public class LUASyntaxConsumer {
         }
 
         long addr = LLVM.LLVMGetFunctionAddress(engine, functionEntry.getName());
-        long argV = Double.doubleToLongBits(2);
+        long argV = Double.doubleToLongBits(19);
 
         nt = System.nanoTime();
         long result = JNI.invokePP(argV, addr);
@@ -411,6 +437,7 @@ public class LUASyntaxConsumer {
             case FUNCTION -> acceptFunction(tokenStream);
             case VARIABLE -> acceptVariable(tokenStream);
             case RETURN -> acceptReturn(tokenStream);
+            case DO -> acceptDo(tokenStream);
             default -> System.out.println("TOKEN: " + tokenStream.current().text);
         }
     }

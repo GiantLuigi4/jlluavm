@@ -11,8 +11,12 @@ import java.util.Set;
 import static org.bytedeco.llvm.global.LLVM.*;
 
 public class LLVMBuilderRoot {
+    public final LLVMValueRef CONST_FALSE;
+    public final LLVMValueRef CONST_TRUE;
     public final LLVMValueRef CONST_0D;
     public final LLVMValueRef CONST_1D;
+
+    public final LLVMTypeRef BIT;
     public final LLVMTypeRef BYTE;
     public final LLVMTypeRef SHORT;
     public final LLVMTypeRef INT;
@@ -35,6 +39,7 @@ public class LLVMBuilderRoot {
         );
         builder = LLVMCreateBuilderInContext(context);
 
+        BIT = LLVM.LLVMInt1TypeInContext(context);
         BYTE = LLVM.LLVMInt8TypeInContext(context);
         SHORT = LLVM.LLVMInt16TypeInContext(context);
         INT = LLVM.LLVMInt32TypeInContext(context);
@@ -46,6 +51,9 @@ public class LLVMBuilderRoot {
 
         LABEL = LLVM.LLVMLabelTypeInContext(context);
         VOID = LLVM.LLVMVoidTypeInContext(context);
+
+        CONST_FALSE = LLVM.LLVMConstInt(BIT, 0, 0);
+        CONST_TRUE = LLVM.LLVMConstInt(BIT, 1, 0);
 
         CONST_0D = loadDouble(0);
         CONST_1D = loadDouble(1);

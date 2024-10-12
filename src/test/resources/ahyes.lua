@@ -1,4 +1,4 @@
-varE = !0 + 3
+varE = 2 + 3
 varE = varE + 6
 
 for i=5, 10, 1 do
@@ -14,42 +14,42 @@ then
 
     for i=5, 10, 1 do
         varE = varE + 1
-        for i1=5, 10, 1 do
+        for i=5, 10, 1 do
             varE = varE + 1
-            for i2=5, 10, 1 do
+            for i=5, 10, 1 do
                 varE = varE + 1
             end
-            for i2=5, 10, 1 do
+            for i=5, 10, 1 do
                 varE = varE + 1
             end
         end
-        for i1=5, 10, 1 do
+        for i=5, 10, 1 do
             varE = varE + 1
-            for i2=5, 10, 1 do
+            for i=5, 10, 1 do
                 varE = varE + 1
             end
-            for i2=5, 10, 1 do
+            for i=5, 10, 1 do
                 varE = varE + 1
             end
         end
     end
     for i=5, 10, 1 do
         varE = varE + 1
-        for i1=5, 10, 1 do
+        for i=5, 10, 1 do
             varE = varE + 1
-            for i2=5, 10, 1 do
+            for i=5, 10, 1 do
                 varE = varE + 1
             end
-            for i2=5, 10, 1 do
+            for i=5, 10, 1 do
                 varE = varE + 1
             end
         end
-        for i1=5, 10, 1 do
+        for i=5, 10, 1 do
             varE = varE + 1
-            for i2=5, 10, 1 do
+            for i=5, 10, 1 do
                 varE = varE + 1
             end
-            for i2=5, 10, 1 do
+            for i=5, 10, 1 do
                 varE = varE + 1
                 if varE <= 5
                 then
@@ -60,42 +60,42 @@ then
 
                     for i=5, 10, 1 do
                         varE = varE + 1
-                        for i1=5, 10, 1 do
+                        for i=5, 10, 1 do
                             varE = varE + 1
-                            for i2=5, 10, 1 do
+                            for i=5, 10, 1 do
                                 varE = varE + 1
                             end
-                            for i2=5, 10, 1 do
+                            for i=5, 10, 1 do
                                 varE = varE + 1
                             end
                         end
-                        for i1=5, 10, 1 do
+                        for i=5, 10, 1 do
                             varE = varE + 1
-                            for i2=5, 10, 1 do
+                            for i=5, 10, 1 do
                                 varE = varE + 1
                             end
-                            for i2=5, 10, 1 do
+                            for i=5, 10, 1 do
                                 varE = varE + 1
                             end
                         end
                     end
                     for i=5, 10, 1 do
                         varE = varE + 1
-                        for i1=5, 10, 1 do
+                        for i=5, 10, 1 do
                             varE = varE + 1
-                            for i2=5, 10, 1 do
+                            for i=5, 10, 1 do
                                 varE = varE + 1
                             end
-                            for i2=5, 10, 1 do
+                            for i=5, 10, 1 do
                                 varE = varE + 1
                             end
                         end
-                        for i1=5, 10, 1 do
+                        for i=5, 10, 1 do
                             varE = varE + 1
-                            for i2=5, 10, 1 do
+                            for i=5, 10, 1 do
                                 varE = varE + 1
                             end
-                            for i2=5, 10, 1 do
+                            for i=5, 10, 1 do
                                 varE = varE + 1
                             end
                         end
@@ -106,4 +106,4 @@ then
     end
 end
 
-return varE
+print(varE)
