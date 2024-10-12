@@ -198,25 +198,44 @@ public class LUASyntaxConsumer {
 
         // https://github.com/bytedeco/javacpp-presets/tree/helloworld/llvm
         LLVMPassManagerRef pass = LLVMCreatePassManager();
+        LLVMAddReassociatePass(pass);
+        LLVMAddPromoteMemoryToRegisterPass(pass);
         LLVMAddConstantPropagationPass(pass);
         LLVMAddInstructionCombiningPass(pass);
-        LLVMAddPromoteMemoryToRegisterPass(pass);
 
         // this was commented
 //        LLVMAddDemoteMemoryToRegisterPass(pass); // Demotes every possible value to memory
 
         // I added these
-        LLVMAddScalarizerPass(pass);
+        LLVMAddLoopIdiomPass(pass);
         LLVMAddIndVarSimplifyPass(pass);
-        LLVMAddPartiallyInlineLibCallsPass(pass);
-        LLVMAddSimplifyLibCallsPass(pass);
+        LLVMAddLoopDeletionPass(pass);
+        LLVMAddLoopUnrollPass(pass);
+        LLVMAddLoopVectorizePass(pass);
+        LLVMAddScalarizerPass(pass);
         LLVMAddMemCpyOptPass(pass);
         LLVMAddConstantMergePass(pass);
-        LLVMAddLoopVectorizePass(pass);
         LLVMAddStripSymbolsPass(pass);
 
-        LLVMAddGVNPass(pass);
+//        LLVMAddGVNPass(pass);
+        LLVMAddNewGVNPass(pass);
+
+//        LLVMAddIPSCCPPass(pass);
+//        LLVMAddLICMPass(pass);
+//        LLVMAddSCCPPass(pass);
+//        LLVMAddEarlyCSEPass(pass);
+        LLVMAddDeadStoreEliminationPass(pass);
+//        LLVMAddPruneEHPass(pass);
+//        LLVMAddAggressiveDCEPass(pass);
+//
+//        LLVMAddEarlyCSEMemSSAPass(pass);
+        LLVMAddBitTrackingDCEPass(pass);
+
+        LLVMAddPartiallyInlineLibCallsPass(pass);
+        LLVMAddSimplifyLibCallsPass(pass);
+
         LLVMAddCFGSimplificationPass(pass);
+
         LLVMRunPassManager(pass, root.getModule());
 
         // cleanup
