@@ -72,6 +72,9 @@ public class LUATokenizer {
                     else type = 3;
 
                     StringBuilder built = new StringBuilder();
+
+                    boolean d0 = true;
+
                     while (true) {
                         built.append(cChar);
                         textIndex += 1;
@@ -80,6 +83,11 @@ public class LUATokenizer {
 
                         if (Character.isWhitespace(cChar))
                             break;
+
+                        if (type == 2 && d0 && cChar == '.') {
+                            d0 = false;
+                            continue;
+                        }
 
                         boolean bV = switch (type) {
                             case 1 -> !Character.isLetterOrDigit(cChar);

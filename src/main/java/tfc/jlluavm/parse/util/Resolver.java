@@ -12,6 +12,9 @@ public class Resolver {
         FUNCTION,
         RETURN,
         FOR_LOOP,
+        IF,
+        ELSE,
+        ELIF,
         EOF;
     }
 
@@ -40,8 +43,12 @@ public class Resolver {
 
         return switch (current.text) {
             case "for" -> ThingType.FOR_LOOP;
+            case "if" -> ThingType.IF;
+            case "else" -> ThingType.ELSE;
+            case "elseif" -> ThingType.ELIF;
             case "return" -> ThingType.RETURN;
-            case "*", "+", "-", "/", "^", "//", "not", "#", "~" -> ThingType.OPERATION;
+            case "*", "+", "-", "/", "^", "//", "not", "#", "~",
+                    "<=", "==", ">=", "!=", "<", ">" -> ThingType.OPERATION;
             default -> ThingType.GENERIC;
         };
     }

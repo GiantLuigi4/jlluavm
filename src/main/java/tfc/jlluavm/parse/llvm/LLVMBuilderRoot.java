@@ -11,6 +11,7 @@ import java.util.Set;
 import static org.bytedeco.llvm.global.LLVM.*;
 
 public class LLVMBuilderRoot {
+    public final LLVMValueRef CONST_0D;
     public final LLVMValueRef CONST_1D;
     public final LLVMTypeRef BYTE;
     public final LLVMTypeRef SHORT;
@@ -19,6 +20,8 @@ public class LLVMBuilderRoot {
     public final LLVMTypeRef HALF;
     public final LLVMTypeRef FLOAT;
     public final LLVMTypeRef DOUBLE;
+    public final LLVMTypeRef LABEL;
+    public final LLVMTypeRef VOID;
 
     LLVMContextRef context;
     LLVMModuleRef module;
@@ -41,6 +44,10 @@ public class LLVMBuilderRoot {
         FLOAT = LLVM.LLVMFloatTypeInContext(context);
         DOUBLE = LLVM.LLVMDoubleTypeInContext(context);
 
+        LABEL = LLVM.LLVMLabelTypeInContext(context);
+        VOID = LLVM.LLVMVoidTypeInContext(context);
+
+        CONST_0D = loadDouble(0);
         CONST_1D = loadDouble(1);
     }
 
@@ -145,6 +152,26 @@ public class LLVMBuilderRoot {
 
     public LLVMValueRef compareLE(LLVMValueRef lh, LLVMValueRef rh) {
         return trackValue(LLVM.LLVMBuildFCmp(builder, LLVM.LLVMRealOLE, lh, rh, nextDescriminator("comp")));
+    }
+
+    public LLVMValueRef compareL(LLVMValueRef lh, LLVMValueRef rh) {
+        return trackValue(LLVM.LLVMBuildFCmp(builder, LLVMRealOLT, lh, rh, nextDescriminator("comp")));
+    }
+
+    public LLVMValueRef compareG(LLVMValueRef lh, LLVMValueRef rh) {
+        return trackValue(LLVM.LLVMBuildFCmp(builder, LLVMRealOGT, lh, rh, nextDescriminator("comp")));
+    }
+
+    public LLVMValueRef compareE(LLVMValueRef lh, LLVMValueRef rh) {
+        return trackValue(LLVM.LLVMBuildFCmp(builder, LLVMRealOEQ, lh, rh, nextDescriminator("comp")));
+    }
+
+    public LLVMValueRef compareNE(LLVMValueRef lh, LLVMValueRef rh) {
+        return trackValue(LLVM.LLVMBuildFCmp(builder, LLVMRealONE, lh, rh, nextDescriminator("comp")));
+    }
+
+    public LLVMValueRef compareGE(LLVMValueRef lh, LLVMValueRef rh) {
+        return trackValue(LLVM.LLVMBuildFCmp(builder, LLVM.LLVMRealOGE, lh, rh, nextDescriminator("comp")));
     }
 
     public void jump(LLVMBasicBlockRef start) {

@@ -20,3 +20,7 @@ end
 for i=5, 10 do
     a = a + 1
 end
+
+if var0 * var1 > 20 then
+    var0 = var0 - 20
+end

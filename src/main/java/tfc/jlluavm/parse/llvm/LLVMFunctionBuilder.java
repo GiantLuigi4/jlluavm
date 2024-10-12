@@ -106,4 +106,8 @@ public class LLVMFunctionBuilder {
     protected LLVMBasicBlockRef makeBlock(String name) {
         return builder.trackValue(LLVMAppendBasicBlock(function, name));
     }
+
+    public LLVMBasicBlockRef activeBlock() {
+        return active;
+    }
 }

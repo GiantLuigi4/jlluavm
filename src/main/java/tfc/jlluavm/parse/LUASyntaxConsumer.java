@@ -42,13 +42,13 @@ public class LUASyntaxConsumer {
 
     int scope = 0;
 
-    public void pushScope() {
+    private void pushScope() {
         scope++;
 
         System.out.println("START SCOPE");
     }
 
-    public void acceptBody(BufferedStream<LUAToken> tokenStream) {
+    private void acceptBody(BufferedStream<LUAToken> tokenStream) {
         acceptBody(true, tokenStream);
     }
 
@@ -58,14 +58,14 @@ public class LUASyntaxConsumer {
         scope--;
     }
 
-    public void acceptBody(boolean withScope, BufferedStream<LUAToken> tokenStream) {
+    private void acceptBody(boolean withScope, BufferedStream<LUAToken> tokenStream) {
         if (withScope) pushScope();
 
         if (!tokenStream.current().text.equals("end")) {
             while (true) {
                 acceptCurrent(tokenStream);
                 LUAToken token = tokenStream.next();
-                if (token.text.equals("end"))
+                if (token.text.equals("end") || token.text.equals("elseif") || token.text.equals("else"))
                     break;
             }
         }
@@ -73,7 +73,7 @@ public class LUASyntaxConsumer {
         if (withScope) popScope();
     }
 
-    public void acceptFunction(BufferedStream<LUAToken> tokenStream) {
+    private void acceptFunction(BufferedStream<LUAToken> tokenStream) {
         boolean local = tokenStream.current().text.equals("local");
         if (local) tokenStream.advance(); // local
         String name = tokenStream.next().text;
@@ -105,7 +105,7 @@ public class LUASyntaxConsumer {
         functionStack.peek().resumeBuilding();
     }
 
-    public void acceptReturn(BufferedStream<LUAToken> tokenStream) {
+    private void acceptReturn(BufferedStream<LUAToken> tokenStream) {
         tokenStream.next();
 
         if (tokenStream.current() == null || tokenStream.current().text.equals("end")) {
@@ -118,7 +118,7 @@ public class LUASyntaxConsumer {
         functionStack.peek().ret(ref);
     }
 
-    public String acceptVariable(boolean local, BufferedStream<LUAToken> tokenStream) {
+    private String acceptVariable(boolean local, BufferedStream<LUAToken> tokenStream) {
         String name = tokenStream.current().text;
         tokenStream.advance(2); // name =
 
@@ -134,7 +134,7 @@ public class LUASyntaxConsumer {
         return name;
     }
 
-    public void acceptVariable(BufferedStream<LUAToken> tokenStream) {
+    private void acceptVariable(BufferedStream<LUAToken> tokenStream) {
         boolean local = tokenStream.current().text.equals("local");
         if (local) tokenStream.advance();
         acceptVariable(local, tokenStream);
@@ -179,87 +179,6 @@ public class LUASyntaxConsumer {
 
     private final BytePointer error = new BytePointer();
 
-    public void finish() {
-        root.dump();
-
-        LLVMFunctionBuilder functionEntry = functionStack.peek();
-
-        finishedFunctions.add(functionStack.pop());
-        boolean verified = true;
-        for (LLVMFunctionBuilder finishedFunction : finishedFunctions) {
-            verified = finishedFunction.verifyFunction() && verified;
-        }
-
-        if (!verified) {
-            return;
-        }
-
-        root.verify();
-
-        // https://github.com/bytedeco/javacpp-presets/tree/helloworld/llvm
-        LLVMPassManagerRef pass = LLVMCreatePassManager();
-        LLVMAddReassociatePass(pass);
-        LLVMAddPromoteMemoryToRegisterPass(pass);
-        LLVMAddConstantPropagationPass(pass);
-        LLVMAddInstructionCombiningPass(pass);
-
-        // this was commented
-//        LLVMAddDemoteMemoryToRegisterPass(pass); // Demotes every possible value to memory
-
-        // I added these
-        LLVMAddLoopIdiomPass(pass);
-        LLVMAddIndVarSimplifyPass(pass);
-        LLVMAddLoopDeletionPass(pass);
-        LLVMAddLoopUnrollPass(pass);
-        LLVMAddLoopVectorizePass(pass);
-        LLVMAddScalarizerPass(pass);
-        LLVMAddMemCpyOptPass(pass);
-        LLVMAddConstantMergePass(pass);
-        LLVMAddStripSymbolsPass(pass);
-
-//        LLVMAddGVNPass(pass);
-        LLVMAddNewGVNPass(pass);
-
-//        LLVMAddIPSCCPPass(pass);
-//        LLVMAddLICMPass(pass);
-//        LLVMAddSCCPPass(pass);
-//        LLVMAddEarlyCSEPass(pass);
-        LLVMAddDeadStoreEliminationPass(pass);
-//        LLVMAddPruneEHPass(pass);
-//        LLVMAddAggressiveDCEPass(pass);
-//
-//        LLVMAddEarlyCSEMemSSAPass(pass);
-        LLVMAddBitTrackingDCEPass(pass);
-
-        LLVMAddPartiallyInlineLibCallsPass(pass);
-        LLVMAddSimplifyLibCallsPass(pass);
-
-        LLVMAddCFGSimplificationPass(pass);
-
-        LLVMRunPassManager(pass, root.getModule());
-
-        // cleanup
-        LLVMDisposePassManager(pass);
-        root.disposeBuilder();
-
-        root.dump();
-
-        // TODO: REMOVE! TESTING ONLY!
-        LLVMExecutionEngineRef engine = new LLVMExecutionEngineRef();
-        LLVMMCJITCompilerOptions options = new LLVMMCJITCompilerOptions();
-        if (LLVMCreateMCJITCompilerForModule(engine, root.getModule(), options, 3, error) != 0) {
-            System.err.println("Failed to create JIT compiler: " + error.getString());
-            LLVMDisposeMessage(error);
-            return;
-        }
-
-        PointerPointer<LLVMGenericValueRef> pointer = new PointerPointer<>();
-        LLVMGenericValueRef result = LLVMRunFunction(engine, functionEntry.function, /* argumentCount */ 0, pointer);
-        System.out.println();
-        System.out.println("Running entry() with MCJIT...");
-        System.out.println("Result: " + Double.longBitsToDouble(LLVMGenericValueToInt(result, /* signExtend */ 0)));
-    }
-
     private void acceptFor(BufferedStream<LUAToken> tokenStream) {
         pushScope();
 
@@ -290,35 +209,166 @@ public class LUASyntaxConsumer {
         // loop iteration tracker
         tokenStream.advance();
 
-        LLVMBasicBlockRef start = builder.createBlock("start_loop");
+        LLVMBasicBlockRef startPos = builder.createBlock("start_loop_p");
+        LLVMBasicBlockRef startNeg = builder.createBlock("start_loop_n");
         LLVMBasicBlockRef block = builder.createBlock("after_loop");
-        LLVMBasicBlockRef body = builder.createBlock("loop_body");
+        LLVMBasicBlockRef bodyPos = builder.createBlock("loop_body_p");
+        LLVMBasicBlockRef bodyNeg = builder.createBlock("loop_body_n");
 
-        root.jump(start);
+        root.jump(startPos);
 
         {
-            builder.buildBlock(start);
-
-            // TODO: pretty sure condition and step have to be computed inside of the block
-
-            LLVMValueRef counter = builder.getVariable(root.DOUBLE, varName);
-            LLVMValueRef interm = counter;
-            // TODO: probably should choose condition based on the direction of the step?
-            LLVMValueRef cond = root.compareLE(interm, terminator);
-            root.conditionalJump(cond, body, block);
-
+            // positive
             {
-                builder.buildBlock(body);
-                interm = root.sum(interm, step);
-                builder.addVariable(varName, interm);
+                // header
+                builder.buildBlock(startPos);
+                LLVMValueRef counter = builder.getVariable(root.DOUBLE, varName);
+                LLVMValueRef cond = root.compareLE(counter, terminator);
+                root.conditionalJump(cond, bodyPos, block);
+
+                // body
+                builder.buildBlock(bodyPos);
+                counter = root.sum(counter, step);
+                builder.addVariable(varName, counter);
                 acceptBody(false, tokenStream);
-                root.jump(start);
+                root.jump(startPos);
+            }
+            // negative
+            {
+                // header
+                builder.buildBlock(startNeg);
+                LLVMValueRef counter = builder.getVariable(root.DOUBLE, varName);
+                LLVMValueRef cond = root.compareGE(counter, terminator);
+                root.conditionalJump(cond, bodyNeg, block);
+
+                // body
+                builder.buildBlock(bodyNeg);
+                counter = root.sum(counter, step);
+                builder.addVariable(varName, counter);
+                acceptBody(false, tokenStream);
+                root.jump(startNeg);
             }
         }
 
         builder.buildBlock(block);
 
         popScope();
+    }
+
+    private void acceptIf(BufferedStream<LUAToken> tokenStream) {
+        tokenStream.advance(); // if
+
+        LLVMValueRef condition = acceptValue(tokenStream);
+        LLVMFunctionBuilder builder = functionStack.peek();
+        LLVMBasicBlockRef from = builder.activeBlock();
+        LLVMBasicBlockRef body = builder.createBlock("body");
+        LLVMBasicBlockRef to = builder.createBlock("to");
+
+        {
+            tokenStream.advance();
+            if (!tokenStream.current().text.equals("then"))
+                throw new RuntimeException("Expected \"then\" but got " + tokenStream.current().text);
+            tokenStream.advance();
+            builder.buildBlock(body);
+            acceptBody(true, tokenStream);
+            root.jump(to);
+        }
+
+        builder.buildBlock(from);
+        root.conditionalJump(condition, body, to);
+
+        builder.buildBlock(to);
+
+        if (tokenStream.current().equals("elseif")) {
+            acceptIf(tokenStream);
+        }
+    }
+
+    public void finish() {
+        root.dump();
+
+        LLVMFunctionBuilder functionEntry = functionStack.peek();
+
+        finishedFunctions.add(functionStack.pop());
+        boolean verified = true;
+        for (LLVMFunctionBuilder finishedFunction : finishedFunctions) {
+            verified = finishedFunction.verifyFunction() && verified;
+        }
+
+        if (!verified)
+            return;
+
+        root.verify();
+
+        long nt = System.nanoTime();
+        LLVMPassManagerRef pass = LLVMCreatePassManager();
+
+//        LLVMAddStripSymbolsPass(pass);
+        LLVMAddCFGSimplificationPass(pass);
+        LLVMAddSimplifyLibCallsPass(pass);
+        LLVMAddPartiallyInlineLibCallsPass(pass);
+        LLVMAddEarlyCSEMemSSAPass(pass);
+
+        LLVMAddReassociatePass(pass);
+        LLVMAddPromoteMemoryToRegisterPass(pass);
+        LLVMAddInstructionCombiningPass(pass);
+
+        LLVMAddLoopRotatePass(pass);
+        LLVMAddLoopIdiomPass(pass);
+        LLVMAddIndVarSimplifyPass(pass);
+        LLVMAddLoopUnswitchPass(pass);
+        LLVMAddLoopDeletionPass(pass);
+        LLVMAddLoopUnrollPass(pass);
+        LLVMAddLoopVectorizePass(pass);
+        LLVMAddScalarizerPass(pass);
+        LLVMAddMemCpyOptPass(pass);
+        LLVMAddConstantMergePass(pass);
+
+        LLVMAddTailCallEliminationPass(pass);
+        LLVMAddConstantPropagationPass(pass);
+
+//        LLVMAddGVNPass(pass);
+        LLVMAddNewGVNPass(pass);
+
+//        LLVMAddIPSCCPPass(pass);
+//        LLVMAddLICMPass(pass);
+//        LLVMAddSCCPPass(pass);
+//        LLVMAddEarlyCSEPass(pass);
+        LLVMAddDeadStoreEliminationPass(pass);
+        LLVMAddMergedLoadStoreMotionPass(pass);
+//        LLVMAddPruneEHPass(pass);
+//        LLVMAddAggressiveDCEPass(pass);
+
+        LLVMAddBitTrackingDCEPass(pass);
+
+        LLVMAddCFGSimplificationPass(pass);
+
+        LLVMRunPassManager(pass, root.getModule());
+        long nt1 = System.nanoTime();
+        System.out.println("Optimization took: " + (nt1 - nt) + " ns");
+
+//        LLVMAddDemoteMemoryToRegisterPass(pass); // Demotes every possible value to memory
+
+        // cleanup
+        LLVMDisposePassManager(pass);
+        root.disposeBuilder();
+
+        root.dump();
+
+        // TODO: REMOVE! TESTING ONLY!
+        LLVMExecutionEngineRef engine = new LLVMExecutionEngineRef();
+        LLVMMCJITCompilerOptions options = new LLVMMCJITCompilerOptions();
+        if (LLVMCreateMCJITCompilerForModule(engine, root.getModule(), options, 3, error) != 0) {
+            System.err.println("Failed to create JIT compiler: " + error.getString());
+            LLVMDisposeMessage(error);
+            return;
+        }
+
+        PointerPointer<LLVMGenericValueRef> pointer = new PointerPointer<>();
+        LLVMGenericValueRef result = LLVMRunFunction(engine, functionEntry.function, /* argumentCount */ 0, pointer);
+        System.out.println();
+        System.out.println("Running entry() with MCJIT...");
+        System.out.println("Result: " + Double.longBitsToDouble(LLVMGenericValueToInt(result, /* signExtend */ 0)));
     }
 
     public void acceptCurrent(BufferedStream<LUAToken> tokenStream) {
@@ -328,11 +378,11 @@ public class LUASyntaxConsumer {
         System.out.println(" EMIT: " + currentType.toString());
         switch (currentType) {
             case FOR_LOOP -> acceptFor(tokenStream);
+            case IF -> acceptIf(tokenStream);
             case FUNCTION -> acceptFunction(tokenStream);
             case VARIABLE -> acceptVariable(tokenStream);
             case RETURN -> acceptReturn(tokenStream);
             default -> System.out.println("TOKEN: " + tokenStream.current().text);
         }
-        System.gc();
     }
 }

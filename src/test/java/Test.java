@@ -17,6 +17,21 @@ public class Test {
                         local varE = varE + 1
                     end
                     
+                    if varE <= 5
+                    then
+                        local varE = 0
+                    elseif varE >= 20
+                    then
+                        local varE = 2.5
+                        
+                        for i=5, 10, 1 do
+                            local varE = varE + 1
+                            for i1=5, 10, 1 do
+                                local varE = varE + 1
+                            end
+                        end
+                    end
+                    
                     return varE
                     """);
 

@@ -33,6 +33,25 @@ public class ExpressionBuilder {
                         case SUB -> {
                             refs.add(i, builderRoot.trackValue(LLVM.LLVMBuildFSub(builderRoot.direct(), refL, refR, builderRoot.nextDescriminator("sub"))));
                         }
+
+                        case GE -> {
+                            refs.add(i, builderRoot.compareGE(refL, refR));
+                        }
+                        case LE -> {
+                            refs.add(i, builderRoot.compareLE(refL, refR));
+                        }
+                        case G -> {
+                            refs.add(i, builderRoot.compareG(refL, refR));
+                        }
+                        case L -> {
+                            refs.add(i, builderRoot.compareL(refL, refR));
+                        }
+                        case EE -> {
+                            refs.add(i, builderRoot.compareE(refL, refR));
+                        }
+                        case NE -> {
+                            refs.add(i, builderRoot.compareNE(refL, refR));
+                        }
                     }
 
                     i -= 1;
@@ -57,6 +76,10 @@ public class ExpressionBuilder {
         NOT("not", 1), LEN('#', 1),
         MUL('*', 2), DIV('/', 2),
         ADD('+', 3), SUB('-', 3),
+
+        LE("<=", 4), GE(">=", 4),
+        L('<', 4), G('>', 4),
+        EE("==", 4), NE("!=", 4)
         ;
 
         public final String symb;
