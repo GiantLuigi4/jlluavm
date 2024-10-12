@@ -11,3 +11,12 @@ end
 
 print("a")
 func0()
+
+a = 0
+for i=5, 10, 1 do
+    a = a + 1
+end
+
+for i=5, 10 do
+    a = a + 1
+end

@@ -11,6 +11,7 @@ import java.util.Set;
 import static org.bytedeco.llvm.global.LLVM.*;
 
 public class LLVMBuilderRoot {
+    public final LLVMValueRef CONST_1D;
     public final LLVMTypeRef BYTE;
     public final LLVMTypeRef SHORT;
     public final LLVMTypeRef INT;
@@ -39,6 +40,8 @@ public class LLVMBuilderRoot {
         HALF = LLVM.LLVMHalfTypeInContext(context);
         FLOAT = LLVM.LLVMFloatTypeInContext(context);
         DOUBLE = LLVM.LLVMDoubleTypeInContext(context);
+
+        CONST_1D = loadDouble(1);
     }
 
     public void position(LLVMBasicBlockRef root) {
@@ -122,5 +125,37 @@ public class LLVMBuilderRoot {
 
     public LLVMModuleRef getModule() {
         return module;
+    }
+
+    public LLVMValueRef alloca(LLVMTypeRef type) {
+        return trackValue(LLVM.LLVMBuildAlloca(builder, type, nextDescriminator("alloca")));
+    }
+
+    public LLVMValueRef setValue(LLVMValueRef ptr, LLVMValueRef value) {
+        return trackValue(LLVM.LLVMBuildStore(builder, value, ptr));
+    }
+
+    public LLVMValueRef getValue(LLVMTypeRef type, LLVMValueRef ptr) {
+        return trackValue(LLVM.LLVMBuildLoad2(builder, type, ptr, nextDescriminator("load")));
+    }
+
+    public LLVMValueRef sum(LLVMValueRef interm, LLVMValueRef step) {
+        return trackValue(LLVM.LLVMBuildFAdd(builder, interm, step, nextDescriminator("add")));
+    }
+
+    public LLVMValueRef compareLE(LLVMValueRef lh, LLVMValueRef rh) {
+        return trackValue(LLVM.LLVMBuildFCmp(builder, LLVM.LLVMRealOLE, lh, rh, nextDescriminator("comp")));
+    }
+
+    public void jump(LLVMBasicBlockRef start) {
+        trackValue(LLVM.LLVMBuildBr(builder, start));
+    }
+
+    public void conditionalJump(LLVMValueRef cond, LLVMBasicBlockRef iTrue, LLVMBasicBlockRef iFalse) {
+        trackValue(LLVM.LLVMBuildCondBr(builder, cond, iTrue, iFalse));
+    }
+
+    public void unreachable() {
+        LLVM.LLVMBuildUnreachable(builder);
     }
 }

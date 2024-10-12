@@ -3,6 +3,7 @@ package tfc.jlluavm.parse;
 import org.bytedeco.javacpp.BytePointer;
 import org.bytedeco.javacpp.PointerPointer;
 import org.bytedeco.llvm.LLVM.*;
+import org.bytedeco.llvm.global.LLVM;
 import tfc.jlluavm.parse.llvm.LLVMBuilderRoot;
 import tfc.jlluavm.parse.llvm.LLVMFunctionBuilder;
 import tfc.jlluavm.parse.util.BufferedStream;
@@ -41,21 +42,35 @@ public class LUASyntaxConsumer {
 
     int scope = 0;
 
-    public void acceptBody(BufferedStream<LUAToken> tokenStream) {
+    public void pushScope() {
         scope++;
 
         System.out.println("START SCOPE");
+    }
 
-        while (true) {
-            acceptCurrent(tokenStream);
-            LUAToken token = tokenStream.next();
-            if (token.text.equals("end"))
-                break;
-        }
+    public void acceptBody(BufferedStream<LUAToken> tokenStream) {
+        acceptBody(true, tokenStream);
+    }
 
+    private void popScope() {
         System.out.println("END SCOPE");
 
         scope--;
+    }
+
+    public void acceptBody(boolean withScope, BufferedStream<LUAToken> tokenStream) {
+        if (withScope) pushScope();
+
+        if (!tokenStream.current().text.equals("end")) {
+            while (true) {
+                acceptCurrent(tokenStream);
+                LUAToken token = tokenStream.next();
+                if (token.text.equals("end"))
+                    break;
+            }
+        }
+
+        if (withScope) popScope();
     }
 
     public void acceptFunction(BufferedStream<LUAToken> tokenStream) {
@@ -103,9 +118,7 @@ public class LUASyntaxConsumer {
         functionStack.peek().ret(ref);
     }
 
-    public void acceptVariable(BufferedStream<LUAToken> tokenStream) {
-        boolean local = tokenStream.current().text.equals("local");
-        if (local) tokenStream.advance();
+    public String acceptVariable(boolean local, BufferedStream<LUAToken> tokenStream) {
         String name = tokenStream.current().text;
         tokenStream.advance(2); // name =
 
@@ -118,6 +131,13 @@ public class LUASyntaxConsumer {
         if (local) {
             functionStack.peek().addVariable(name, value);
         } else throw new RuntimeException("NYI: Globals");
+        return name;
+    }
+
+    public void acceptVariable(BufferedStream<LUAToken> tokenStream) {
+        boolean local = tokenStream.current().text.equals("local");
+        if (local) tokenStream.advance();
+        acceptVariable(local, tokenStream);
     }
 
     private LLVMValueRef acceptSingleValue(BufferedStream<LUAToken> tokenStream) {
@@ -125,7 +145,7 @@ public class LUASyntaxConsumer {
             return root.loadDouble(Double.parseDouble(tokenStream.current().text));
         } else if (tokenStream.current().type.equals("literal")) {
             // TODO: scoped access to variables
-            return functionStack.peek().getVariable(tokenStream.current().text);
+            return functionStack.peek().getVariable(root.DOUBLE, tokenStream.current().text);
         } else if (tokenStream.current().text.equals("(")) {
             tokenStream.advance();
             LLVMValueRef ref = acceptValue(tokenStream);
@@ -155,19 +175,6 @@ public class LUASyntaxConsumer {
             return builder.build(root);
         }
         throw new RuntimeException("NYI");
-    }
-
-    public void acceptCurrent(BufferedStream<LUAToken> tokenStream) {
-        if (tokenStream.current() == null) return;
-
-        Resolver.ThingType currentType = Resolver.nextThing(tokenStream);
-        System.out.println(" EMIT: " + currentType.toString());
-        switch (currentType) {
-            case FUNCTION -> acceptFunction(tokenStream);
-            case VARIABLE -> acceptVariable(tokenStream);
-            case RETURN -> acceptReturn(tokenStream);
-            default -> System.out.println("TOKEN: " + tokenStream.current().text);
-        }
     }
 
     private final BytePointer error = new BytePointer();
@@ -232,5 +239,81 @@ public class LUASyntaxConsumer {
         System.out.println();
         System.out.println("Running entry() with MCJIT...");
         System.out.println("Result: " + Double.longBitsToDouble(LLVMGenericValueToInt(result, /* signExtend */ 0)));
+    }
+
+    private void acceptFor(BufferedStream<LUAToken> tokenStream) {
+        pushScope();
+
+        tokenStream.advance();
+        String varName = acceptVariable(true, tokenStream);
+
+        tokenStream.advance(2); // val ,
+
+        LLVMValueRef terminator = acceptValue(tokenStream);
+        tokenStream.advance();
+
+        LLVMValueRef step;
+        if (tokenStream.current().text.equals(",")) {
+            tokenStream.advance();
+            step = acceptValue(tokenStream);
+            tokenStream.advance(); // value
+        } else {
+            step = root.CONST_1D;
+        }
+        System.out.println(tokenStream.current().text);
+
+        if (!tokenStream.current().text.equals("do")) {
+            throw new RuntimeException("Expected a \"do\" after loop header");
+        }
+
+        LLVMFunctionBuilder builder = functionStack.peek();
+
+        // loop iteration tracker
+        tokenStream.advance();
+
+        LLVMBasicBlockRef start = builder.createBlock("start_loop");
+        LLVMBasicBlockRef block = builder.createBlock("after_loop");
+        LLVMBasicBlockRef body = builder.createBlock("loop_body");
+
+        root.jump(start);
+
+        {
+            builder.buildBlock(start);
+
+            // TODO: pretty sure condition and step have to be computed inside of the block
+
+            LLVMValueRef counter = builder.getVariable(root.DOUBLE, varName);
+            LLVMValueRef interm = counter;
+            // TODO: probably should choose condition based on the direction of the step?
+            LLVMValueRef cond = root.compareLE(interm, terminator);
+            root.conditionalJump(cond, body, block);
+
+            {
+                builder.buildBlock(body);
+                interm = root.sum(interm, step);
+                builder.addVariable(varName, interm);
+                acceptBody(false, tokenStream);
+                root.jump(start);
+            }
+        }
+
+        builder.buildBlock(block);
+
+        popScope();
+    }
+
+    public void acceptCurrent(BufferedStream<LUAToken> tokenStream) {
+        if (tokenStream.current() == null) return;
+
+        Resolver.ThingType currentType = Resolver.nextThing(tokenStream);
+        System.out.println(" EMIT: " + currentType.toString());
+        switch (currentType) {
+            case FOR_LOOP -> acceptFor(tokenStream);
+            case FUNCTION -> acceptFunction(tokenStream);
+            case VARIABLE -> acceptVariable(tokenStream);
+            case RETURN -> acceptReturn(tokenStream);
+            default -> System.out.println("TOKEN: " + tokenStream.current().text);
+        }
+        System.gc();
     }
 }

@@ -10,9 +10,14 @@ public class Test {
             LUASyntaxConsumer consumer = new LUASyntaxConsumer();
 
             BufferedStream<LUAToken> tokenStream = tokenizer.tokenStream("""
-                    local var0 = 5
-                    local var1 = 16
-                    return var0 + (var1 * 2) + 3 / 2 * 2
+                    local varE = 5 + 3
+                    local varE = varE + 6
+                    
+                    for i=5, 10, 1 do
+                        local varE = varE + 1
+                    end
+                    
+                    return varE
                     """);
 
             long nt = System.nanoTime();

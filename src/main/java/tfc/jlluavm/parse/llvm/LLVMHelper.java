@@ -14,7 +14,7 @@ public class LLVMHelper {
     ) {
         return new LLVMFunctionBuilder(
                 root,
-                LLVMAddFunction(root.module, name, type),
+                root.trackValue(LLVMAddFunction(root.module, name, type)),
                 type,
                 name
         );

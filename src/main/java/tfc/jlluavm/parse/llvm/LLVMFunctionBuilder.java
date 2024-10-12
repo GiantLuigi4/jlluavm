@@ -29,7 +29,7 @@ public class LLVMFunctionBuilder {
         this.name = name;
 
         LLVMSetFunctionCallConv(function, LLVMCCallConv);
-        root = blockFor(function, "entry");
+        root = makeBlock("entry");
         active = root;
     }
 
@@ -39,18 +39,20 @@ public class LLVMFunctionBuilder {
         return this;
     }
 
-    public LLVMFunctionBuilder buildBlock(String name) {
-        active = blockFor(function, name);
+    public LLVMFunctionBuilder buildBlock(LLVMBasicBlockRef block) {
+        active = block;
+        resumeBuilding();
         return this;
+    }
+
+    public LLVMBasicBlockRef buildBlock(String name) {
+        active = makeBlock(name);
+        resumeBuilding();
+        return active;
     }
 
     public void resumeBuilding() {
         builder.position(active);
-    }
-
-    // TODO: uniquify block names?
-    public LLVMBasicBlockRef blockFor(LLVMValueRef function, String name) {
-        return LLVMAppendBasicBlock(function, name);
     }
 
     public LLVMValueRef getParam(int index) {
@@ -67,11 +69,16 @@ public class LLVMFunctionBuilder {
     HashMap<String, LLVMValueRef> variables = new HashMap<>();
 
     public void addVariable(String name, LLVMValueRef value) {
-        variables.put(name, value);
+        LLVMValueRef refr = variables.get(name);
+        if (refr == null) {
+            LLVMValueRef ptr = builder.alloca(builder.LONG);
+            builder.setValue(ptr, builder.cast(value, builder.LONG));
+            variables.put(name, ptr);
+        } else builder.setValue(refr, builder.cast(value, builder.LONG));
     }
 
-    public LLVMValueRef getVariable(String var) {
-        return variables.get(var);
+    public LLVMValueRef getVariable(LLVMTypeRef type, String var) {
+        return builder.cast(builder.getValue(builder.LONG, variables.get(var)), type);
     }
 
     public void ret(LLVMValueRef ref) {
@@ -90,5 +97,13 @@ public class LLVMFunctionBuilder {
             return false;
         }
         return true;
+    }
+
+    public LLVMBasicBlockRef createBlock(String name) {
+        return makeBlock(name);
+    }
+
+    protected LLVMBasicBlockRef makeBlock(String name) {
+        return builder.trackValue(LLVMAppendBasicBlock(function, name));
     }
 }
