@@ -339,16 +339,16 @@ public class LUASyntaxConsumer {
 
         root.verify();
 
-        long nt = System.nanoTime();
-//        LLVMInitializeAggressiveInstCombiner(LLVM.LLVMGetGlobalPassRegistry());
+        LLVMInitializeAggressiveInstCombiner(LLVM.LLVMGetGlobalPassRegistry());
         LLVMPassManagerRef pass = LLVMCreatePassManager();
-//        LLVMAddStripSymbolsPass(pass);
+        LLVMAddStripSymbolsPass(pass);
 
 //        LLVMAddCFGSimplificationPass(pass);
         LLVMAddAggressiveDCEPass(pass); // dead code elimination
         LLVMAddSimplifyLibCallsPass(pass);
         LLVMAddPartiallyInlineLibCallsPass(pass);
         LLVMAddEarlyCSEMemSSAPass(pass);
+        LLVMAddEarlyCSEPass(pass);
 
         LLVMAddReassociatePass(pass);
         LLVMAddPromoteMemoryToRegisterPass(pass);
@@ -359,20 +359,21 @@ public class LUASyntaxConsumer {
 
         LLVMAddInstructionCombiningPass(pass);
 
+        LLVMAddScalarizerPass(pass);
+
         for (int i = 0; i < loopEliminationFactor; i++) {
             LLVMAddLoopUnrollPass(pass);
-
-            LLVMAddNewGVNPass(pass);
             LLVMAddCFGSimplificationPass(pass);
-
-            LLVMAddReassociatePass(pass);
-            LLVMAddInstructionCombiningPass(pass);
         }
+
+        LLVMAddReassociatePass(pass);
+        LLVMAddInstructionCombiningPass(pass);
 
         LLVMAddLoopUnswitchPass(pass);
         LLVMAddLoopDeletionPass(pass);
-        LLVMAddScalarizerPass(pass);
         LLVMAddLoopVectorizePass(pass);
+        LLVMAddSLPVectorizePass(pass);
+        LLVMAddJumpThreadingPass(pass);
 
         LLVMAddMemCpyOptPass(pass);
         LLVMAddConstantMergePass(pass);
@@ -380,19 +381,23 @@ public class LUASyntaxConsumer {
         LLVMAddTailCallEliminationPass(pass);
         LLVMAddConstantPropagationPass(pass);
 
-//        LLVMAddGVNPass(pass);
         LLVMAddNewGVNPass(pass);
 
-//        LLVMAddEarlyCSEPass(pass);
 //        LLVMAddBitTrackingDCEPass(pass);
 
-//        LLVMAddDeadStoreEliminationPass(pass);
-//        LLVMAddMergedLoadStoreMotionPass(pass);
-//        LLVMAddAggressiveDCEPass(pass); // dead code elimination
+        LLVMAddDeadStoreEliminationPass(pass);
+        LLVMAddMergedLoadStoreMotionPass(pass);
+        LLVMAddAggressiveDCEPass(pass); // dead code elimination
 
-//        LLVMAddInstructionCombiningPass(pass);
+        LLVMAddInstructionCombiningPass(pass);
+        LLVMAddIndVarSimplifyPass(pass);
+        LLVMAddReassociatePass(pass);
+
+        LLVMAddLoopVectorizePass(pass);
+        LLVMAddSLPVectorizePass(pass);
 
 //        LLVMAddDemoteMemoryToRegisterPass(pass); // Demotes every possible value to memory
+        long nt = System.nanoTime();
         LLVMRunPassManager(pass, root.getModule());
         long nt1 = System.nanoTime();
         System.out.println("Optimization took: " + (nt1 - nt) + " ns");
@@ -414,10 +419,15 @@ public class LUASyntaxConsumer {
         }
 
         long addr = LLVM.LLVMGetFunctionAddress(engine, functionEntry.getName());
-        long argV = Double.doubleToLongBits(19);
+        long argV = Double.doubleToLongBits(21);
 
         nt = System.nanoTime();
         long result = JNI.invokePP(argV, addr);
+        nt1 = System.nanoTime();
+        System.out.println("Execution took: " + (nt1 - nt) + " ns");
+
+        nt = System.nanoTime();
+        result = JNI.invokePP(argV, addr);
         nt1 = System.nanoTime();
         System.out.println("Execution took: " + (nt1 - nt) + " ns");
 

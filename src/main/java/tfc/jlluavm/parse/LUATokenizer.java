@@ -39,6 +39,19 @@ public class LUATokenizer {
                     return null;
                 }
 
+                if (text.startsWith("--", textIndex)) {
+                    StringBuilder built = new StringBuilder();
+                    char cChar = '-';
+                    while (cChar != '\n') {
+                        built.append(cChar);
+                        textIndex++;
+                        cChar = text.charAt(textIndex);
+                    }
+
+                    skip = true;
+                    return new LUAToken(built.toString(), "comment");
+                }
+
                 char cChar = text.charAt(textIndex);
                 if (Character.isLetter(cChar)) {
                     for (LUAToken keyword : keywords) {
