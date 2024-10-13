@@ -349,58 +349,58 @@ public class LUASyntaxConsumer {
         LLVMPassManagerRef pass = LLVMCreatePassManager();
 //        LLVMAddStripSymbolsPass(pass);
 
-//        LLVMAddCFGSimplificationPass(pass);
-//        LLVMAddAggressiveDCEPass(pass); // dead code elimination
-//        LLVMAddSimplifyLibCallsPass(pass);
-//        LLVMAddPartiallyInlineLibCallsPass(pass);
-//        LLVMAddEarlyCSEMemSSAPass(pass);
-//        LLVMAddEarlyCSEPass(pass);
+        LLVMAddCFGSimplificationPass(pass);
+        LLVMAddAggressiveDCEPass(pass); // dead code elimination
+        LLVMAddSimplifyLibCallsPass(pass);
+        LLVMAddPartiallyInlineLibCallsPass(pass);
+        LLVMAddEarlyCSEMemSSAPass(pass);
+        LLVMAddEarlyCSEPass(pass);
 
         LLVMAddReassociatePass(pass);
         LLVMAddPromoteMemoryToRegisterPass(pass);
-//        LLVMAddLICMPass(pass);
+        LLVMAddLICMPass(pass);
 
-//        LLVMAddLoopRotatePass(pass);
-//        LLVMAddLoopIdiomPass(pass);
+        LLVMAddLoopRotatePass(pass);
+        LLVMAddLoopIdiomPass(pass);
 
         LLVMAddInstructionCombiningPass(pass);
 
-//        LLVMAddScalarizerPass(pass);
+        LLVMAddScalarizerPass(pass);
 
-//        for (int i = 0; i < loopEliminationFactor; i++) {
-//            LLVMAddLoopUnrollPass(pass);
-//            LLVMAddCFGSimplificationPass(pass);
-//        }
-//
-//        LLVMAddReassociatePass(pass);
-//        LLVMAddInstructionCombiningPass(pass);
-//
-//        LLVMAddLoopUnswitchPass(pass);
-//        LLVMAddLoopDeletionPass(pass);
-//        LLVMAddLoopVectorizePass(pass);
-//        LLVMAddSLPVectorizePass(pass);
-//        LLVMAddJumpThreadingPass(pass);
-//
-//        LLVMAddMemCpyOptPass(pass);
-//        LLVMAddConstantMergePass(pass);
-//
-//        LLVMAddTailCallEliminationPass(pass);
-//        LLVMAddConstantPropagationPass(pass);
-//
-//        LLVMAddNewGVNPass(pass);
-//
-////        LLVMAddBitTrackingDCEPass(pass);
-//
-//        LLVMAddDeadStoreEliminationPass(pass);
-//        LLVMAddMergedLoadStoreMotionPass(pass);
-//        LLVMAddAggressiveDCEPass(pass); // dead code elimination
-//
-//        LLVMAddInstructionCombiningPass(pass);
-//        LLVMAddIndVarSimplifyPass(pass);
-//        LLVMAddReassociatePass(pass);
-//
-//        LLVMAddLoopVectorizePass(pass);
-//        LLVMAddSLPVectorizePass(pass);
+        for (int i = 0; i < loopEliminationFactor; i++) {
+            LLVMAddLoopUnrollPass(pass);
+            LLVMAddCFGSimplificationPass(pass);
+        }
+
+        LLVMAddReassociatePass(pass);
+        LLVMAddInstructionCombiningPass(pass);
+
+        LLVMAddLoopUnswitchPass(pass);
+        LLVMAddLoopDeletionPass(pass);
+        LLVMAddLoopVectorizePass(pass);
+        LLVMAddSLPVectorizePass(pass);
+        LLVMAddJumpThreadingPass(pass);
+
+        LLVMAddMemCpyOptPass(pass);
+        LLVMAddConstantMergePass(pass);
+
+        LLVMAddTailCallEliminationPass(pass);
+        LLVMAddConstantPropagationPass(pass);
+
+        LLVMAddNewGVNPass(pass);
+
+//        LLVMAddBitTrackingDCEPass(pass);
+
+        LLVMAddDeadStoreEliminationPass(pass);
+        LLVMAddMergedLoadStoreMotionPass(pass);
+        LLVMAddAggressiveDCEPass(pass); // dead code elimination
+
+        LLVMAddInstructionCombiningPass(pass);
+        LLVMAddIndVarSimplifyPass(pass);
+        LLVMAddReassociatePass(pass);
+
+        LLVMAddLoopVectorizePass(pass);
+        LLVMAddSLPVectorizePass(pass);
 
 //        LLVMAddDemoteMemoryToRegisterPass(pass); // Demotes every possible value to memory
         long nt = System.nanoTime();
