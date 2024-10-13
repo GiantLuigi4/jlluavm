@@ -2,8 +2,8 @@ package tfc.jlluavm.parse.scopes;
 
 import org.bytedeco.llvm.LLVM.LLVMTypeRef;
 import org.bytedeco.llvm.LLVM.LLVMValueRef;
-import tfc.jlluavm.parse.llvm.LLVMBuilderRoot;
-import tfc.jlluavm.parse.llvm.LLVMFunctionBuilder;
+import tfc.llvmutil.LLVMBuilderRoot;
+import tfc.llvmutil.LLVMFunctionBuilder;
 
 import java.util.HashMap;
 import java.util.HashSet;

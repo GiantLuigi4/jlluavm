@@ -1,4 +1,4 @@
-package tfc.jlluavm.parse.llvm;
+package tfc.llvmutil;
 
 import org.bytedeco.llvm.LLVM.LLVMTypeRef;
 
@@ -12,7 +12,17 @@ public class LLVMHelper {
             String name,
             LLVMTypeRef type
     ) {
+        return emitFunction(true, root, name, type);
+    }
+
+    public static LLVMFunctionBuilder emitFunction(
+            boolean withBody,
+            LLVMBuilderRoot root,
+            String name,
+            LLVMTypeRef type
+    ) {
         return new LLVMFunctionBuilder(
+                withBody,
                 root,
                 root.trackValue(LLVMAddFunction(root.module, name, type)),
                 type,

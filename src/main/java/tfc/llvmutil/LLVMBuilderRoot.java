@@ -1,4 +1,4 @@
-package tfc.jlluavm.parse.llvm;
+package tfc.llvmutil;
 
 import org.bytedeco.javacpp.BytePointer;
 import org.bytedeco.javacpp.Pointer;
@@ -11,6 +11,11 @@ import java.util.Set;
 import static org.bytedeco.llvm.global.LLVM.*;
 
 public class LLVMBuilderRoot {
+    static {
+        LLVMInitializeNativeTarget();
+        LLVMInitializeNativeAsmPrinter();
+    }
+
     public final LLVMValueRef CONST_FALSE;
     public final LLVMValueRef CONST_TRUE;
     public final LLVMValueRef CONST_0D;
@@ -78,6 +83,10 @@ public class LLVMBuilderRoot {
 
     public LLVMFunctionBuilder function(String name, LLVMTypeRef type) {
         return LLVMHelper.emitFunction(this, name, type);
+    }
+
+    public LLVMFunctionBuilder functionPrototype(String name, LLVMTypeRef type) {
+        return LLVMHelper.emitFunction(false, this, name, type);
     }
 
     int load_indx = 0;
@@ -192,5 +201,14 @@ public class LLVMBuilderRoot {
 
     public void unreachable() {
         LLVM.LLVMBuildUnreachable(builder);
+    }
+
+    public LLVMStructBuilder createStruct(String name) {
+        return new LLVMStructBuilder(
+                LLVM.LLVMStructCreateNamed(
+                        context,
+                        name
+                )
+        );
     }
 }

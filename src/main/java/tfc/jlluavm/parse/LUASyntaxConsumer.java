@@ -5,8 +5,8 @@ import org.bytedeco.javacpp.PointerPointer;
 import org.bytedeco.llvm.LLVM.*;
 import org.bytedeco.llvm.global.LLVM;
 import org.lwjgl.system.Library;
-import tfc.jlluavm.parse.llvm.LLVMBuilderRoot;
-import tfc.jlluavm.parse.llvm.LLVMFunctionBuilder;
+import tfc.llvmutil.LLVMBuilderRoot;
+import tfc.llvmutil.LLVMFunctionBuilder;
 import tfc.jlluavm.parse.scopes.GlobalScope;
 import tfc.jlluavm.parse.scopes.Scope;
 import tfc.jlluavm.parse.util.BufferedStream;
@@ -20,11 +20,6 @@ import static org.bytedeco.llvm.global.LLVM.*;
 import org.lwjgl.system.JNI;
 
 public class LUASyntaxConsumer {
-    static {
-        LLVMInitializeNativeTarget();
-        LLVMInitializeNativeAsmPrinter();
-    }
-
     static int loopEliminationFactor = 2;
 
     LLVMBuilderRoot root;
@@ -160,7 +155,7 @@ public class LUASyntaxConsumer {
             return ref;
             // TODO: remove
         } else if (tokenStream.current().type.equals("tmp_arg")) {
-            return functionStack.peek().getParam(Integer.parseInt(tokenStream.current().text.substring(1)));
+            return functionStack.peek().getParamAsDouble(Integer.parseInt(tokenStream.current().text.substring(1)));
         }
         return null;
     }
@@ -264,9 +259,9 @@ public class LUASyntaxConsumer {
             }
         }
 
-        builder.buildBlock(block);
-
         popScope();
+
+        builder.buildBlock(block);
     }
 
     private void acceptIf(BufferedStream<LUAToken> tokenStream) {

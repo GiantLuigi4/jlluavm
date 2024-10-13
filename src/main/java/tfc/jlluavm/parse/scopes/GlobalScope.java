@@ -1,6 +1,6 @@
 package tfc.jlluavm.parse.scopes;
 
-import tfc.jlluavm.parse.llvm.LLVMBuilderRoot;
+import tfc.llvmutil.LLVMBuilderRoot;
 
 public class GlobalScope extends Scope {
     public GlobalScope(LLVMBuilderRoot root) {

@@ -2,7 +2,7 @@ package tfc.jlluavm.parse;
 
 import org.bytedeco.llvm.LLVM.LLVMValueRef;
 import org.bytedeco.llvm.global.LLVM;
-import tfc.jlluavm.parse.llvm.LLVMBuilderRoot;
+import tfc.llvmutil.LLVMBuilderRoot;
 
 import java.util.ArrayList;
 import java.util.List;

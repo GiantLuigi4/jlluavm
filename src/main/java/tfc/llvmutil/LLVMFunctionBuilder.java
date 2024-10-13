@@ -1,6 +1,5 @@
-package tfc.jlluavm.parse.llvm;
+package tfc.llvmutil;
 
-import org.bytedeco.javacpp.BytePointer;
 import org.bytedeco.llvm.LLVM.*;
 import org.bytedeco.llvm.global.LLVM;
 
@@ -23,15 +22,17 @@ public class LLVMFunctionBuilder {
 
     String name;
 
-    public LLVMFunctionBuilder(LLVMBuilderRoot builder, LLVMValueRef function, LLVMTypeRef type, String name) {
+    public LLVMFunctionBuilder(boolean withBody, LLVMBuilderRoot builder, LLVMValueRef function, LLVMTypeRef type, String name) {
         this.builder = builder;
         this.function = function;
         this.type = type;
         this.name = name;
 
         LLVMSetFunctionCallConv(function, LLVMCCallConv);
-        root = makeBlock("entry");
-        active = root;
+        if (withBody) {
+            root = makeBlock("entry");
+            active = root;
+        }
     }
 
     public LLVMFunctionBuilder buildRoot() {
@@ -56,13 +57,25 @@ public class LLVMFunctionBuilder {
         builder.position(active);
     }
 
-    public LLVMValueRef getParam(int index) {
+    public LLVMValueRef getParamAsDouble(int index) {
         LLVMValueRef ref = params.get(index);
         if (ref == null) {
             ref = LLVMHelper.getParam(function, index);
             params.put(
                     index,
                     ref = builder.cast(ref, builder.DOUBLE)
+            );
+        }
+        return ref;
+    }
+
+    public LLVMValueRef getParam(int index, LLVMTypeRef type) {
+        LLVMValueRef ref = params.get(index);
+        if (ref == null) {
+            ref = LLVMHelper.getParam(function, index);
+            params.put(
+                    index,
+                    ref = builder.cast(ref, type)
             );
         }
         return ref;
