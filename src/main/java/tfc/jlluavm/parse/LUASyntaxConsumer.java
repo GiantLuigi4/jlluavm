@@ -25,7 +25,9 @@ public class LUASyntaxConsumer {
     LLVMBuilderRoot root;
     ArrayList<LLVMFunctionBuilder> finishedFunctions = new ArrayList<>();
     ArrayDeque<LLVMFunctionBuilder> functionStack = new ArrayDeque<>();
+    ArrayDeque<LLVMBasicBlockRef> breakTo = new ArrayDeque<>();
     GlobalScope global;
+    ArrayDeque<Scope> scopes = new ArrayDeque<>();
 
     public LUASyntaxConsumer() {
         root = new LLVMBuilderRoot(
@@ -51,8 +53,6 @@ public class LUASyntaxConsumer {
         scopes.push(new Scope(global, scopes.peek(), root, functionStack.peek()));
     }
 
-    ArrayDeque<Scope> scopes = new ArrayDeque<>();
-
     private void acceptBody(BufferedStream<LUAToken> tokenStream) {
         acceptBody(true, tokenStream);
     }
@@ -62,6 +62,10 @@ public class LUASyntaxConsumer {
         System.out.println("END SCOPE");
     }
 
+    boolean isEnder(LUAToken token) {
+        return token.text.equals("end") || token.text.equals("elseif") || token.text.equals("else");
+    }
+
     private void acceptBody(boolean withScope, BufferedStream<LUAToken> tokenStream) {
         if (withScope) pushScope();
 
@@ -69,7 +73,7 @@ public class LUASyntaxConsumer {
             while (true) {
                 acceptCurrent(tokenStream);
                 LUAToken token = tokenStream.next();
-                if (token.text.equals("end") || token.text.equals("elseif") || token.text.equals("else"))
+                if (isEnder(token))
                     break;
             }
         }
@@ -221,43 +225,45 @@ public class LUASyntaxConsumer {
         LLVMBasicBlockRef startPos = builder.createBlock("start_loop_p");
         LLVMBasicBlockRef startNeg = builder.createBlock("start_loop_n");
         LLVMBasicBlockRef block = builder.createBlock("after_loop");
-        LLVMBasicBlockRef bodyPos = builder.createBlock("loop_body_p");
-        LLVMBasicBlockRef bodyNeg = builder.createBlock("loop_body_n");
+        LLVMBasicBlockRef body = builder.createBlock("loop_body");
 
-        root.jump(startPos);
+        LLVMValueRef condPN = root.compareG(step, root.CONST_0D);
+        root.conditionalJump(condPN, startPos, startNeg);
+
+        breakTo.push(block);
 
         {
-            // positive
             {
-                // header
-                builder.buildBlock(startPos);
-                LLVMValueRef counter = scopes.peek().getVariable(root.DOUBLE, varName);
-                LLVMValueRef cond = root.compareLE(counter, terminator);
-                root.conditionalJump(cond, bodyPos, block);
-
-                // body
-                builder.buildBlock(bodyPos);
-                counter = root.sum(counter, step);
-                scopes.peek().addVariable(true, varName, counter);
-                acceptBody(false, tokenStream);
-                root.jump(startPos);
-            }
-            // negative
-            {
-                // header
+                // negative header
                 builder.buildBlock(startNeg);
                 LLVMValueRef counter = scopes.peek().getVariable(root.DOUBLE, varName);
                 LLVMValueRef cond = root.compareGE(counter, terminator);
-                root.conditionalJump(cond, bodyNeg, block);
+                root.conditionalJump(cond, body, block);
+            }
+            {
+                // positive header
+                builder.buildBlock(startPos);
+                LLVMValueRef counter = scopes.peek().getVariable(root.DOUBLE, varName);
+                LLVMValueRef cond = root.compareLE(counter, terminator);
+                root.conditionalJump(cond, body, block);
+            }
+            {
+                // counter
+                builder.buildBlock(body);
+                LLVMValueRef counter = scopes.peek().getVariable(root.DOUBLE, varName);
+                LLVMValueRef counterNV = root.sum(counter, step);
+                scopes.peek().addVariable(true, varName, counterNV);
 
                 // body
-                builder.buildBlock(bodyNeg);
-                counter = root.sum(counter, step);
+                pushScope();
                 scopes.peek().addVariable(true, varName, counter);
                 acceptBody(false, tokenStream);
-                root.jump(startNeg);
+                root.conditionalJump(condPN, startPos, startNeg);
+                popScope();
             }
         }
+
+        breakTo.pop();
 
         popScope();
 
@@ -316,6 +322,11 @@ public class LUASyntaxConsumer {
         acceptBody(true, tokenStream);
     }
 
+    private void acceptBreak(BufferedStream<LUAToken> tokenStream) {
+        root.jump(breakTo.peek());
+        throw new RuntimeException("NYI");
+    }
+
     public void finish() {
         popScope();
 
@@ -336,60 +347,60 @@ public class LUASyntaxConsumer {
 
         LLVMInitializeAggressiveInstCombiner(LLVM.LLVMGetGlobalPassRegistry());
         LLVMPassManagerRef pass = LLVMCreatePassManager();
-        LLVMAddStripSymbolsPass(pass);
+//        LLVMAddStripSymbolsPass(pass);
 
 //        LLVMAddCFGSimplificationPass(pass);
-        LLVMAddAggressiveDCEPass(pass); // dead code elimination
-        LLVMAddSimplifyLibCallsPass(pass);
-        LLVMAddPartiallyInlineLibCallsPass(pass);
-        LLVMAddEarlyCSEMemSSAPass(pass);
-        LLVMAddEarlyCSEPass(pass);
+//        LLVMAddAggressiveDCEPass(pass); // dead code elimination
+//        LLVMAddSimplifyLibCallsPass(pass);
+//        LLVMAddPartiallyInlineLibCallsPass(pass);
+//        LLVMAddEarlyCSEMemSSAPass(pass);
+//        LLVMAddEarlyCSEPass(pass);
 
         LLVMAddReassociatePass(pass);
         LLVMAddPromoteMemoryToRegisterPass(pass);
-        LLVMAddLICMPass(pass);
+//        LLVMAddLICMPass(pass);
 
-        LLVMAddLoopRotatePass(pass);
-        LLVMAddLoopIdiomPass(pass);
-
-        LLVMAddInstructionCombiningPass(pass);
-
-        LLVMAddScalarizerPass(pass);
-
-        for (int i = 0; i < loopEliminationFactor; i++) {
-            LLVMAddLoopUnrollPass(pass);
-            LLVMAddCFGSimplificationPass(pass);
-        }
-
-        LLVMAddReassociatePass(pass);
-        LLVMAddInstructionCombiningPass(pass);
-
-        LLVMAddLoopUnswitchPass(pass);
-        LLVMAddLoopDeletionPass(pass);
-        LLVMAddLoopVectorizePass(pass);
-        LLVMAddSLPVectorizePass(pass);
-        LLVMAddJumpThreadingPass(pass);
-
-        LLVMAddMemCpyOptPass(pass);
-        LLVMAddConstantMergePass(pass);
-
-        LLVMAddTailCallEliminationPass(pass);
-        LLVMAddConstantPropagationPass(pass);
-
-        LLVMAddNewGVNPass(pass);
-
-//        LLVMAddBitTrackingDCEPass(pass);
-
-        LLVMAddDeadStoreEliminationPass(pass);
-        LLVMAddMergedLoadStoreMotionPass(pass);
-        LLVMAddAggressiveDCEPass(pass); // dead code elimination
+//        LLVMAddLoopRotatePass(pass);
+//        LLVMAddLoopIdiomPass(pass);
 
         LLVMAddInstructionCombiningPass(pass);
-        LLVMAddIndVarSimplifyPass(pass);
-        LLVMAddReassociatePass(pass);
 
-        LLVMAddLoopVectorizePass(pass);
-        LLVMAddSLPVectorizePass(pass);
+//        LLVMAddScalarizerPass(pass);
+
+//        for (int i = 0; i < loopEliminationFactor; i++) {
+//            LLVMAddLoopUnrollPass(pass);
+//            LLVMAddCFGSimplificationPass(pass);
+//        }
+//
+//        LLVMAddReassociatePass(pass);
+//        LLVMAddInstructionCombiningPass(pass);
+//
+//        LLVMAddLoopUnswitchPass(pass);
+//        LLVMAddLoopDeletionPass(pass);
+//        LLVMAddLoopVectorizePass(pass);
+//        LLVMAddSLPVectorizePass(pass);
+//        LLVMAddJumpThreadingPass(pass);
+//
+//        LLVMAddMemCpyOptPass(pass);
+//        LLVMAddConstantMergePass(pass);
+//
+//        LLVMAddTailCallEliminationPass(pass);
+//        LLVMAddConstantPropagationPass(pass);
+//
+//        LLVMAddNewGVNPass(pass);
+//
+////        LLVMAddBitTrackingDCEPass(pass);
+//
+//        LLVMAddDeadStoreEliminationPass(pass);
+//        LLVMAddMergedLoadStoreMotionPass(pass);
+//        LLVMAddAggressiveDCEPass(pass); // dead code elimination
+//
+//        LLVMAddInstructionCombiningPass(pass);
+//        LLVMAddIndVarSimplifyPass(pass);
+//        LLVMAddReassociatePass(pass);
+//
+//        LLVMAddLoopVectorizePass(pass);
+//        LLVMAddSLPVectorizePass(pass);
 
 //        LLVMAddDemoteMemoryToRegisterPass(pass); // Demotes every possible value to memory
         long nt = System.nanoTime();
@@ -443,6 +454,7 @@ public class LUASyntaxConsumer {
             case VARIABLE -> acceptVariable(tokenStream);
             case RETURN -> acceptReturn(tokenStream);
             case DO -> acceptDo(tokenStream);
+            case BREAK -> acceptBreak(tokenStream);
             default -> System.out.println("TOKEN: " + tokenStream.current().text);
         }
     }

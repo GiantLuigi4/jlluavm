@@ -16,20 +16,19 @@ public class Test {
 
             BufferedStream<LUAToken> tokenStream = tokenizer.tokenStream("""
                     varA = !0
-                    varB = 20
                     
-                    if varA > varB
-                    then
-                        varB = varA - 1
-                    elseif varA == varB
-                    then
-                        varA = varA + 1
-                        varB = 0
-                    else
-                        varA = varB - 1
+                    for i = 100, 50, (0-1)
+                    do
+                        i = i + 1
+                        varA = varA + i
+                        for i = 100, 50, (0-1)
+                        do
+                            i = i + 1
+                            varA = varA + i
+                        end
                     end
                     
-                    return varA - varB
+                    return varA
                     """);
 
             long nt = System.nanoTime();

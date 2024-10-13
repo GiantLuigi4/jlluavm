@@ -16,6 +16,7 @@ public class Resolver {
         ELSE,
         ELIF,
         DO,
+        BREAK,
         EOF;
     }
 
@@ -48,6 +49,7 @@ public class Resolver {
             case "else" -> ThingType.ELSE;
             case "elseif" -> ThingType.ELIF;
             case "return" -> ThingType.RETURN;
+            case "break" -> ThingType.BREAK;
             case "do" -> ThingType.DO;
             case "*", "+", "-", "/", "^", "//", "not", "#", "~",
                     "<=", "==", ">=", "!=", "<", ">" -> ThingType.OPERATION;
