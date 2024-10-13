@@ -347,7 +347,7 @@ public class LUASyntaxConsumer {
 
         LLVMInitializeAggressiveInstCombiner(LLVM.LLVMGetGlobalPassRegistry());
         LLVMPassManagerRef pass = LLVMCreatePassManager();
-//        LLVMAddStripSymbolsPass(pass);
+        LLVMAddStripSymbolsPass(pass);
 
         LLVMAddCFGSimplificationPass(pass);
         LLVMAddAggressiveDCEPass(pass); // dead code elimination
@@ -372,13 +372,13 @@ public class LUASyntaxConsumer {
             LLVMAddCFGSimplificationPass(pass);
         }
 
-        LLVMAddReassociatePass(pass);
-        LLVMAddInstructionCombiningPass(pass);
+//        LLVMAddReassociatePass(pass);
+//        LLVMAddInstructionCombiningPass(pass);
 
         LLVMAddLoopUnswitchPass(pass);
         LLVMAddLoopDeletionPass(pass);
-        LLVMAddLoopVectorizePass(pass);
-        LLVMAddSLPVectorizePass(pass);
+//        LLVMAddLoopVectorizePass(pass);
+//        LLVMAddSLPVectorizePass(pass);
         LLVMAddJumpThreadingPass(pass);
 
         LLVMAddMemCpyOptPass(pass);
@@ -389,20 +389,39 @@ public class LUASyntaxConsumer {
 
         LLVMAddNewGVNPass(pass);
 
-//        LLVMAddBitTrackingDCEPass(pass);
-
         LLVMAddDeadStoreEliminationPass(pass);
         LLVMAddMergedLoadStoreMotionPass(pass);
         LLVMAddAggressiveDCEPass(pass); // dead code elimination
 
-        LLVMAddInstructionCombiningPass(pass);
-        LLVMAddIndVarSimplifyPass(pass);
         LLVMAddReassociatePass(pass);
+        LLVMAddIndVarSimplifyPass(pass);
+        LLVMAddInstructionCombiningPass(pass);
 
         LLVMAddLoopVectorizePass(pass);
         LLVMAddSLPVectorizePass(pass);
 
 //        LLVMAddDemoteMemoryToRegisterPass(pass); // Demotes every possible value to memory
+//        LLVMAddReassociatePass(pass);
+//        LLVMAddIndVarSimplifyPass(pass);
+//        LLVMAddInstructionCombiningPass(pass);
+//        LLVMAddConstantMergePass(pass);
+//        LLVMAddConstantPropagationPass(pass);
+//        LLVMAddSCCPPass(pass);
+//        LLVMAddLoopRotatePass(pass);
+//        LLVMAddLoopUnrollAndJamPass(pass);
+//        LLVMAddCFGSimplificationPass(pass);
+//        LLVMAddReassociatePass(pass);
+//        LLVMAddIndVarSimplifyPass(pass);
+//        LLVMAddInstructionCombiningPass(pass);
+//        LLVMAddCFGSimplificationPass(pass);
+//        LLVMAddNewGVNPass(pass);
+//        LLVMAddPromoteMemoryToRegisterPass(pass);
+//        LLVMAddReassociatePass(pass);
+//        LLVMAddIndVarSimplifyPass(pass);
+//        LLVMAddInstructionCombiningPass(pass);
+//        LLVMAddCFGSimplificationPass(pass);
+//        LLVMAddNewGVNPass(pass);
+
         long nt = System.nanoTime();
         LLVMRunPassManager(pass, root.getModule());
         long nt1 = System.nanoTime();
