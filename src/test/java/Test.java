@@ -23,7 +23,7 @@ public class Test {
 
             BufferedStream<LUAToken> tokenStream = tokenizer.tokenStream("""
                     varA = !0
-                                        
+                    
                     for i = 100, 50, (0-1)
                     do
                         i = i + 1
@@ -34,7 +34,7 @@ public class Test {
                             varA = varA + i
                         end
                     end
-                                        
+                    
                     return varA
                     """);
 

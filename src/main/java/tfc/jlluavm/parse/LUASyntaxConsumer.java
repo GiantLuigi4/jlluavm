@@ -138,12 +138,10 @@ public class LUASyntaxConsumer {
 
         LUAValue ref = acceptValue(tokenStream);
         LLVMValueRef v0 = functionStack.peek().getParam(0, root.BYTE_PTR);
-        LLVMValueRef v1 = functionStack.peek().getParam(1, root.LONG_PTR);
         root.setValue(v0, ref.type);
-        root.setValue(v1, ref.data);
+        LLVMValueRef v1 = functionStack.peek().getParam(1, root.LONG_PTR);
+        root.setValue(v1, ref.getData(root, root.LONG));
         functionStack.peek().ret();
-//        ref = root.cast(ref, root.LONG);
-//        functionStack.peek().ret(ref);
     }
 
     private String acceptVariable(boolean local, BufferedStream<LUAToken> tokenStream) {
@@ -203,14 +201,14 @@ public class LUASyntaxConsumer {
         LUAValue ref = acceptSingleValue(tokenStream);
         if (ref != null) {
             // TODO: typing
-            builder.addValue(ref.getData(root, root.DOUBLE));
+            builder.addValue(ref);
             while (Resolver.nextThing(tokenStream, 1) == Resolver.ThingType.OPERATION) {
                 tokenStream.advance();
                 builder.addOperation(tokenStream.current().text);
                 tokenStream.advance();
-                builder.addValue(acceptSingleValue(tokenStream).getData(root, root.DOUBLE));
+                builder.addValue(acceptSingleValue(tokenStream));
             }
-            return new LUAValue(root, 0, builder.build(root));
+            return builder.build(root);
         } else if (tokenStream.current().text.equals("true")) {
             return CONST_TRUE;
         } else if (tokenStream.current().text.equals("false")) {
@@ -328,7 +326,9 @@ public class LUASyntaxConsumer {
         }
 
         builder.buildBlock(from);
-        root.conditionalJump(condition.data, body, to);
+
+        // TODO: throw LUA exception if not bool
+        root.conditionalJump(condition.getData(root, root.BIT), body, to);
 
         builder.buildBlock(to);
 

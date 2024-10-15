@@ -10,6 +10,12 @@ public class LUAValue {
 
     public final boolean ptr;
 
+    public LUAValue(boolean ptr, LLVMValueRef type, LLVMValueRef data) {
+        this.ptr = ptr;
+        this.type = type;
+        this.data = data;
+    }
+
     public LUAValue(LLVMValueRef type, LLVMValueRef data) {
         this.type = type;
         this.data = data;
@@ -27,7 +33,9 @@ public class LUAValue {
             case 6 -> root.CONST_6B; // jni function
             default -> throw new RuntimeException("NYI");
         };
-        this.data = root.cast(data, root.LONG);
+        // bool cannot be cast to int/long
+        if (type != 2) this.data = root.cast(data, root.LONG);
+        else this.data = data;
         ptr = false;
     }
 

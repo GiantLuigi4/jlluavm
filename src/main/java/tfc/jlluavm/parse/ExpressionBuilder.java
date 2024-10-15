@@ -8,49 +8,106 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class ExpressionBuilder {
-    List<LLVMValueRef> refs = new ArrayList<>();
+    List<LUAValue> refs = new ArrayList<>();
     List<Operation> ops = new ArrayList<>();
 
-    public LLVMValueRef build(LLVMBuilderRoot builderRoot) {
+    LUAValue toLUA(LLVMBuilderRoot root, LLVMValueRef typeL, LLVMValueRef typeR, LLVMValueRef refOut) {
+        // TODO: conjoin types
+        return new LUAValue(false, root.CONST_0L, refOut);
+    }
+
+    LUAValue toLUA(LLVMBuilderRoot root, LLVMValueRef typeOut, LLVMValueRef refOut) {
+        // TODO: conjoin types
+        return new LUAValue(false, typeOut, refOut);
+    }
+
+    public LUAValue build(LLVMBuilderRoot builderRoot) {
         for (int precedence = 0; precedence <= lastPrecedence; precedence++) {
             for (int i = 0; i < refs.size() - 1; i++) {
                 Operation op = ops.get(i);
                 if (op.precedence == precedence) {
                     ops.remove(i);
-                    LLVMValueRef refL = refs.remove(i);
-                    LLVMValueRef refR = refs.remove(i);
+                    LUAValue valL = refs.remove(i);
+                    LUAValue valR = refs.remove(i);
+
+                    LLVMValueRef refL = valL.getData(builderRoot, builderRoot.DOUBLE);
+                    LLVMValueRef refR = valR.getData(builderRoot, builderRoot.DOUBLE);
 
                     switch (op) {
                         case MUL -> {
-                            refs.add(i, builderRoot.trackValue(LLVM.LLVMBuildFMul(builderRoot.direct(), refL, refR, builderRoot.nextDiscriminator("mul"))));
+                            refs.add(i, toLUA(
+                                    builderRoot,
+                                    valL.type,
+                                    valR.type,
+                                    builderRoot.trackValue(LLVM.LLVMBuildFMul(builderRoot.direct(), refL, refR, builderRoot.nextDiscriminator("mul"))))
+                            );
                         }
                         case DIV -> {
-                            refs.add(i, builderRoot.trackValue(LLVM.LLVMBuildFDiv(builderRoot.direct(), refL, refR, builderRoot.nextDiscriminator("div"))));
+                            refs.add(i, toLUA(
+                                    builderRoot,
+                                    valL.type,
+                                    valR.type,
+                                    builderRoot.trackValue(LLVM.LLVMBuildFDiv(builderRoot.direct(), refL, refR, builderRoot.nextDiscriminator("div"))))
+                            );
                         }
                         case ADD -> {
-                            refs.add(i, builderRoot.trackValue(LLVM.LLVMBuildFAdd(builderRoot.direct(), refL, refR, builderRoot.nextDiscriminator("add"))));
+                            refs.add(i, toLUA(
+                                    builderRoot,
+                                    valL.type,
+                                    valR.type,
+                                    builderRoot.trackValue(LLVM.LLVMBuildFAdd(builderRoot.direct(), refL, refR, builderRoot.nextDiscriminator("add"))))
+                            );
                         }
                         case SUB -> {
-                            refs.add(i, builderRoot.trackValue(LLVM.LLVMBuildFSub(builderRoot.direct(), refL, refR, builderRoot.nextDiscriminator("sub"))));
+                            refs.add(i, toLUA(
+                                    builderRoot,
+                                    valL.type,
+                                    valR.type,
+                                    builderRoot.trackValue(LLVM.LLVMBuildFSub(builderRoot.direct(), refL, refR, builderRoot.nextDiscriminator("sub"))))
+                            );
                         }
 
                         case GE -> {
-                            refs.add(i, builderRoot.compareGE(refL, refR));
+                            refs.add(i, toLUA(
+                                    builderRoot,
+                                    builderRoot.CONST_2B,
+                                    builderRoot.compareGE(refL, refR))
+                            );
                         }
                         case LE -> {
-                            refs.add(i, builderRoot.compareLE(refL, refR));
+                            refs.add(i, toLUA(
+                                    builderRoot,
+                                    builderRoot.CONST_2B,
+                                    builderRoot.compareLE(refL, refR))
+                            );
                         }
                         case G -> {
-                            refs.add(i, builderRoot.compareG(refL, refR));
+                            refs.add(i, toLUA(
+                                    builderRoot,
+                                    builderRoot.CONST_2B,
+                                    builderRoot.compareG(refL, refR))
+                            );
                         }
                         case L -> {
-                            refs.add(i, builderRoot.compareL(refL, refR));
+                            refs.add(i, toLUA(
+                                    builderRoot,
+                                    builderRoot.CONST_2B,
+                                    builderRoot.compareL(refL, refR))
+                            );
                         }
                         case EE -> {
-                            refs.add(i, builderRoot.compareE(refL, refR));
+                            refs.add(i, toLUA(
+                                    builderRoot,
+                                    builderRoot.CONST_2B,
+                                    builderRoot.compareE(refL, refR))
+                            );
                         }
                         case NE -> {
-                            refs.add(i, builderRoot.compareNE(refL, refR));
+                            refs.add(i, toLUA(
+                                    builderRoot,
+                                    builderRoot.CONST_2B,
+                                    builderRoot.compareNE(refL, refR))
+                            );
                         }
                     }
 
@@ -61,7 +118,7 @@ public class ExpressionBuilder {
         return refs.get(0);
     }
 
-    public void addValue(LLVMValueRef ref) {
+    public void addValue(LUAValue ref) {
         refs.add(ref);
     }
 
@@ -79,8 +136,7 @@ public class ExpressionBuilder {
 
         LE("<=", 4), GE(">=", 4),
         L('<', 4), G('>', 4),
-        EE("==", 4), NE("!=", 4)
-        ;
+        EE("==", 4), NE("!=", 4);
 
         public final String symb;
         public final int precedence;
