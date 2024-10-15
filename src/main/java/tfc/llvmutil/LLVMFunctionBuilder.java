@@ -28,11 +28,16 @@ public class LLVMFunctionBuilder {
         this.type = type;
         this.name = name;
 
-        LLVMSetFunctionCallConv(function, LLVMCCallConv);
+        LLVMSetFunctionCallConv(function, LLVMFastCallConv);
         if (withBody) {
             root = makeBlock("entry");
             active = root;
         }
+    }
+
+    public LLVMFunctionBuilder withConvention(int conv) {
+        LLVMSetFunctionCallConv(function, conv);
+        return this;
     }
 
     public LLVMFunctionBuilder buildRoot() {

@@ -25,7 +25,8 @@ public class LLVMParamsBuilder {
                 LLVMFunctionType(
                         ret,
                         paramsPtr,
-                        args.size(), 0
+                        args.size(),
+                        0
                 )
         );
     }

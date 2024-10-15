@@ -47,4 +47,11 @@ public class LLVMStructBuilder {
     public LLVMTypeRef type() {
         return struct;
     }
+
+    public LLVMStructBuilder addElements(PointerPointer<LLVMTypeRef> ptr) {
+        for (long i = 0; i < ptr.capacity(); i++) {
+            bodyElems.add(ptr.get(LLVMTypeRef.class, i));
+        }
+        return this;
+    }
 }

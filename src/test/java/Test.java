@@ -8,7 +8,15 @@ public class Test {
     public static void main(String[] args) {
         ProtoJNI.init();
         System.out.println(ProtoJNI.getJNIEnv());
-        System.out.println(ProtoJNI.getClassID(Test.class));
+        String hi = "Hi";
+        String hello = "Hello";
+        System.out.println(ProtoJNI.getPtr(hello));
+        System.out.println(ProtoJNI.getPtr(hi));
+        System.out.println(ProtoJNI.getObj(ProtoJNI.getPtr(hello)));
+        System.out.println(ProtoJNI.debug(hi));
+        System.out.println(ProtoJNI.debug(hello));
+        System.out.println("MID");
+        System.out.println(ProtoJNI.getMethodID(Test.class, "main", "([Ljava/lang/String;)V"));
 
         for (int i = 0; i < 1; i++) {
             LUATokenizer tokenizer = new LUATokenizer();
@@ -16,7 +24,7 @@ public class Test {
 
             BufferedStream<LUAToken> tokenStream = tokenizer.tokenStream("""
                     varA = !0
-                    
+                                        
                     for i = 100, 50, (0-1)
                     do
                         i = i + 1
@@ -27,7 +35,7 @@ public class Test {
                             varA = varA + i
                         end
                     end
-                    
+                                        
                     return varA
                     """);
 

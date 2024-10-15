@@ -2,22 +2,34 @@ package tfc.llvmutil;
 
 import org.bytedeco.javacpp.BytePointer;
 import org.bytedeco.javacpp.Pointer;
+import org.bytedeco.javacpp.PointerPointer;
 import org.bytedeco.llvm.LLVM.*;
 import org.bytedeco.llvm.global.LLVM;
 
+import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 
 import static org.bytedeco.llvm.global.LLVM.*;
 
 public class LLVMBuilderRoot {
+
     static {
         LLVMInitializeNativeTarget();
         LLVMInitializeNativeAsmPrinter();
     }
 
+    public final LLVMTypeRef BYTE_PTR;
+    public final LLVMTypeRef BIT_PTR;
+    public final LLVMTypeRef VOID_PTR;
+
     public final LLVMValueRef CONST_FALSE;
     public final LLVMValueRef CONST_TRUE;
+
+    public final LLVMValueRef CONST_0B;
+    public final LLVMValueRef CONST_1B;
+
     public final LLVMValueRef CONST_0D;
     public final LLVMValueRef CONST_1D;
 
@@ -34,7 +46,7 @@ public class LLVMBuilderRoot {
 
     LLVMContextRef context;
     LLVMModuleRef module;
-    LLVMBuilderRef builder;
+    public final LLVMBuilderRef builder;
 
     public LLVMBuilderRoot(String name) {
         context = LLVMContextCreate();
@@ -57,11 +69,18 @@ public class LLVMBuilderRoot {
         LABEL = LLVM.LLVMLabelTypeInContext(context);
         VOID = LLVM.LLVMVoidTypeInContext(context);
 
+        BIT_PTR = LLVM.LLVMPointerType(BIT, 0);
+        BYTE_PTR = LLVM.LLVMPointerType(BYTE, 0);
+        VOID_PTR = LLVM.LLVMPointerType(VOID, 0);
+
         CONST_FALSE = LLVM.LLVMConstInt(BIT, 0, 0);
         CONST_TRUE = LLVM.LLVMConstInt(BIT, 1, 0);
 
         CONST_0D = loadDouble(0);
         CONST_1D = loadDouble(1);
+
+        CONST_0B = loadByte((byte) 0);
+        CONST_1B = loadByte((byte) 1);
     }
 
     public void position(LLVMBasicBlockRef root) {
@@ -81,12 +100,19 @@ public class LLVMBuilderRoot {
         }
     }
 
+    List<LLVMFunctionBuilder> functions = new ArrayList<>();
+
     public LLVMFunctionBuilder function(String name, LLVMTypeRef type) {
-        return LLVMHelper.emitFunction(this, name, type);
+        LLVMFunctionBuilder func = LLVMHelper.emitFunction(this, name, type);
+        functions.add(func);
+        return func;
     }
 
     public LLVMFunctionBuilder functionPrototype(String name, LLVMTypeRef type) {
-        return LLVMHelper.emitFunction(false, this, name, type);
+        LLVMFunctionBuilder func = LLVMHelper.emitFunction(false, this, name, type);
+        LLVMSetLinkage(func.function, LLVMExternalLinkage);
+        functions.add(func);
+        return func;
     }
 
     int load_indx = 0;
@@ -135,6 +161,27 @@ public class LLVMBuilderRoot {
         ));
     }
 
+    public LLVMValueRef intCast(LLVMValueRef value, LLVMTypeRef toType) {
+        return trackValue(LLVM.LLVMBuildIntCast(
+                builder, value,
+                toType, nextDiscriminator("cast")
+        ));
+    }
+
+    public LLVMValueRef ptrCast(LLVMValueRef value, LLVMTypeRef toType) {
+        return trackValue(LLVM.LLVMBuildPointerCast(
+                builder, value,
+                toType, nextDiscriminator("cast")
+        ));
+    }
+
+    public LLVMValueRef addrSpaceCast(LLVMValueRef value, LLVMTypeRef toType) {
+        return trackValue(LLVM.LLVMBuildAddrSpaceCast(
+                builder, value,
+                toType, nextDiscriminator("cast")
+        ));
+    }
+
     public LLVMBuilderRef direct() {
         return builder;
     }
@@ -152,7 +199,11 @@ public class LLVMBuilderRoot {
     }
 
     public LLVMValueRef alloca(LLVMTypeRef type) {
-        return trackValue(LLVM.LLVMBuildAlloca(builder, type, nextDiscriminator("alloca")));
+        return alloca(type, "alloca");
+    }
+
+    public LLVMValueRef alloca(LLVMTypeRef type, String label) {
+        return trackValue(LLVM.LLVMBuildAlloca(builder, type, nextDiscriminator(label)));
     }
 
     public LLVMValueRef setValue(LLVMValueRef ptr, LLVMValueRef value) {
@@ -210,5 +261,70 @@ public class LLVMBuilderRoot {
                         name
                 )
         );
+    }
+
+    public boolean validateFunctions() {
+        boolean valid = true;
+        for (LLVMFunctionBuilder function : functions)
+            valid = function.verifyFunction() && valid;
+        return valid;
+    }
+
+    public LLVMValueRef call(LLVMFunctionBuilder func, LLVMValueRef... args) {
+        PointerPointer<LLVMValueRef> ptr = trackValue(new PointerPointer<>(args.length));
+        for (int i = 0; i < args.length; i++) {
+            ptr.put(i, args[i]);
+        }
+
+        LLVMValueRef call = LLVM.LLVMBuildCall(
+                builder, func.function,
+                ptr, args.length, nextDiscriminator("call")
+        );
+        LLVMSetInstructionCallConv(call, LLVMGetFunctionCallConv(func.function));
+        return trackValue(call);
+    }
+
+    public void callV(LLVMFunctionBuilder func, LLVMValueRef... args) {
+        PointerPointer<LLVMValueRef> ptr = trackValue(new PointerPointer<>(args.length));
+        for (int i = 0; i < args.length; i++) {
+            ptr.put(i, args[i]);
+        }
+        LLVMValueRef call = LLVM.LLVMBuildCall(
+                builder, func.function,
+                ptr, args.length, ""
+        );
+        LLVMSetInstructionCallConv(call, LLVMGetFunctionCallConv(func.function));
+        trackValue(call);
+    }
+
+    public LLVMValueRef call(LLVMValueRef func, LLVMValueRef... args) {
+        PointerPointer<LLVMValueRef> ptr = trackValue(new PointerPointer<>(args.length));
+        for (int i = 0; i < args.length; i++) {
+            ptr.put(i, args[i]);
+        }
+
+        LLVMValueRef call = LLVM.LLVMBuildCall(
+                builder, func,
+                ptr, args.length, nextDiscriminator("call")
+        );
+        LLVMSetInstructionCallConv(call, LLVMGetFunctionCallConv(func));
+        return trackValue(call);
+    }
+
+    public void callV(LLVMValueRef func, LLVMValueRef... args) {
+        PointerPointer<LLVMValueRef> ptr = trackValue(new PointerPointer<>(args.length));
+        for (int i = 0; i < args.length; i++) {
+            ptr.put(i, args[i]);
+        }
+        LLVMValueRef call = LLVM.LLVMBuildCall(
+                builder, func,
+                ptr, args.length, ""
+        );
+        LLVMSetInstructionCallConv(call, LLVMGetFunctionCallConv(func));
+        trackValue(call);
+    }
+
+    public LLVMTypeRef pointerType(LLVMTypeRef bytePtr) {
+        return LLVM.LLVMPointerType(bytePtr, 0);
     }
 }
