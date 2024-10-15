@@ -8,13 +8,6 @@ public class Test {
     public static void main(String[] args) {
         ProtoJNI.init();
         System.out.println(ProtoJNI.getJNIEnv());
-        String hi = "Hi";
-        String hello = "Hello";
-        System.out.println(ProtoJNI.getPtr(hello));
-        System.out.println(ProtoJNI.getPtr(hi));
-        System.out.println(ProtoJNI.getObj(ProtoJNI.getPtr(hello)));
-        System.out.println(ProtoJNI.debug(hi));
-        System.out.println(ProtoJNI.debug(hello));
         System.out.println("MID");
         System.out.println(ProtoJNI.getMethodID(Test.class, "main", "([Ljava/lang/String;)V"));
 

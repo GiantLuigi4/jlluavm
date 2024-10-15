@@ -38,12 +38,13 @@ public class ProtoJNI {
         LLVMStructBuilder jniEnv = root.createStruct("JNINativeInterface_");
         jniEnv.addElements(ptr0).setBody();
         LLVMTypeRef envPtr = jniEnv.pointerType(0);
+        LLVMTypeRef envPtrPtr = root.pointerType(envPtr);
         LLVMTypeRef constCharPtr = root.BYTE_PTR;
 
         LLVMFunctionBuilder getUTFFunc = root.functionPrototype(
                 "GetStringUTFChars",
                 new LLVMParamsBuilder(root)
-                        .addArg(envPtr)
+                        .addArg(envPtrPtr)
                         .addArg(strPtr)
                         .addArg(root.BYTE)
                         .build(constCharPtr)
@@ -51,7 +52,7 @@ public class ProtoJNI {
         LLVMFunctionBuilder freeUTFFunc = root.functionPrototype(
                 "ReleaseStringUTFChars",
                 new LLVMParamsBuilder(root)
-                        .addArg(envPtr)
+                        .addArg(envPtrPtr)
                         .addArg(strPtr)
                         .addArg(constCharPtr)
                         .build(root.VOID)
@@ -59,7 +60,7 @@ public class ProtoJNI {
         LLVMFunctionBuilder getMethodID = root.functionPrototype(
                 "GetMethodID",
                 new LLVMParamsBuilder(root)
-                        .addArg(envPtr)
+                        .addArg(envPtrPtr)
                         .addArg(clzPtr)
                         .addArg(constCharPtr)
                         .addArg(constCharPtr)
@@ -67,63 +68,38 @@ public class ProtoJNI {
         ).withConvention(LLVMCCallConv);
 
         {
+            // TODO: fix
             builder = root.function(
                     prefix + "_getJNIEnv",
                     new LLVMParamsBuilder(root)
-                            .addArg(root.LONG).addArg(clzPtr)
+                            .addArg(envPtrPtr).addArg(clzPtr)
                             .build(root.LONG)
             ).withConvention(LLVMCCallConv).buildRoot();
-            builder.ret(builder.getParam(0, root.LONG));
-        }
-        {
-            builder = root.function(
-                    prefix + "_debug",
-                    new LLVMParamsBuilder(root)
-                            .addArg(envPtr).addArg(clzPtr)
-                            .addArg(objPtr)
-                            .build(objPtr)
-            ).withConvention(LLVMCCallConv).buildRoot();
-            builder.ret(builder.getParam(2, objPtr));
-        }
-        {
-            builder = root.function(
-                    prefix + "_castP",
-                    new LLVMParamsBuilder(root)
-                            .addArg(envPtr).addArg(clzPtr)
-                            .addArg(objPtr)
-                            .build(root.LONG)
-            ).withConvention(LLVMCCallConv).buildRoot();
-            builder.ret(root.ptrCast(builder.getParam(2, objPtr), root.LONG));
-        }
-        {
-            builder = root.function(
-                    prefix + "_castO",
-                    new LLVMParamsBuilder(root)
-                            .addArg(envPtr).addArg(clzPtr)
-                            .addArg(objPtr)
-                            .build(objPtr)
-            ).withConvention(LLVMCCallConv).buildRoot();
-            builder.ret(root.addrSpaceCast(builder.getParam(2, objPtr), objPtr));
+            LLVMValueRef val =root.getValue(envPtr, builder.getParam(0, envPtrPtr));
+            builder.ret(root.ptrCast(val, root.LONG));
         }
         {
             builder = root.function(
                     prefix + "_getJMethod",
                     new LLVMParamsBuilder(root)
-                            .addArg(envPtr).addArg(clzPtr)
+                            .addArg(envPtrPtr).addArg(clzPtr)
                             .addArg(clzPtr)
                             .addArg(strPtr)
                             .addArg(strPtr)
                             .build(root.LONG)
             ).withConvention(LLVMCCallConv).buildRoot();
 
-            LLVMValueRef envRef = builder.getParam(0, envPtr);
+            LLVMValueRef envRef = builder.getParam(0, envPtrPtr);
             LLVMValueRef nameJSTR = builder.getParam(3, strPtr);
+            LLVMValueRef signJSTR = builder.getParam(4, strPtr);
+
+            LLVMValueRef envLoaded = root.getValue(envPtr, envRef);
 
             PointerPointer<LLVMValueRef> params = new PointerPointer<>(2);
             params.put(0, root.loadLong(0));
-            params.put(1, root.loadInt(169));
-            LLVMValueRef getUTF = LLVM.LLVMBuildGEP(
-                    root.builder, envRef,
+            params.put(1, root.loadInt(169)); // 169 == GetStaticMethodID
+            LLVMValueRef getUTF = LLVM.LLVMBuildInBoundsGEP(
+                    root.builder, envLoaded,
                     params, 2,
                     "getUTF"
             );
@@ -131,10 +107,9 @@ public class ProtoJNI {
             LLVMValueRef jniFalse = LLVM.LLVMConstNull(root.BYTE);
 
             LLVMValueRef getUTFLoaded = root.getValue(root.pointerType(getUTFFunc.type), getUTF);
-//            LLVMValueRef getUTFLoaded = root.ptrCast(getUTF, root.pointerType(getUTFFunc.type));
 
-//            LLVMValueRef nameChr = root.call(getUTFLoaded, envRef, nameJSTR, jniFalse);
-//            LLVMValueRef signChr = root.call(getUTF, env, signJSTR, jniFalse);
+            LLVMValueRef nameChr = root.call(getUTFLoaded, envRef, nameJSTR, jniFalse);
+            LLVMValueRef signChr = root.call(getUTFLoaded, envRef, signJSTR, jniFalse);
 
 //            LLVMValueRef res = root.call(
 //                    getMethodID,
@@ -142,7 +117,6 @@ public class ProtoJNI {
 //                    nameChr, signChr
 //            );
 //
-//            // TODO: validate?
 //            root.callV(freeUTF, env, nameJSTR, nameChr);
 //            root.callV(freeUTF, env, signJSTR, signChr);
 //
@@ -170,7 +144,7 @@ public class ProtoJNI {
             throw new RuntimeException("Failed to prototype JNI.");
         }
 
-        JNINativeMethod.Buffer buffer = JNINativeMethod.calloc(5);
+        JNINativeMethod.Buffer buffer = JNINativeMethod.calloc(2);
 
         ArrayList<ByteBuffer> buffers = new ArrayList<>();
 
@@ -198,36 +172,6 @@ public class ProtoJNI {
         method.name(name);
         buffers.add(name);
 
-        addr = LLVM.LLVMGetFunctionAddress(engine, prefix + "_castP");
-        method = buffer.get(2);
-        method.fnPtr(addr);
-        sig = MemoryUtil.memUTF8("(Ljava/lang/Object;)J");
-        method.signature(sig);
-        buffers.add(sig);
-        name = MemoryUtil.memUTF8("getPtr");
-        method.name(name);
-        buffers.add(name);
-
-        addr = LLVM.LLVMGetFunctionAddress(engine, prefix + "_castO");
-        method = buffer.get(3);
-        method.fnPtr(addr);
-        sig = MemoryUtil.memUTF8("(J)Ljava/lang/Object;");
-        method.signature(sig);
-        buffers.add(sig);
-        name = MemoryUtil.memUTF8("getObj");
-        method.name(name);
-        buffers.add(name);
-
-        addr = LLVM.LLVMGetFunctionAddress(engine, prefix + "_debug");
-        method = buffer.get(4);
-        method.fnPtr(addr);
-        sig = MemoryUtil.memUTF8("(Ljava/lang/Object;)Ljava/lang/Object;");
-        method.signature(sig);
-        buffers.add(sig);
-        name = MemoryUtil.memUTF8("debug");
-        method.name(name);
-        buffers.add(name);
-
         JNINativeInterface.RegisterNatives(
                 ProtoJNI.class,
                 buffer
@@ -242,10 +186,4 @@ public class ProtoJNI {
     public static native long getJNIEnv();
 
     public static native long getMethodID(Class<?> clz, String name, String signature);
-
-    public static native long getPtr(Object obj);
-
-    public static native Object getObj(long ptr);
-
-    public static native Object debug(Object obj);
 }
