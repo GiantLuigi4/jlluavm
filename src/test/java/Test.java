@@ -5,6 +5,10 @@ import tfc.jlluavm.parse.LUATokenizer;
 import tfc.jni.ProtoJNI;
 
 public class Test {
+    public static void print(String data) {
+        System.out.println(data);
+    }
+
     public static void main(String[] args) {
         ProtoJNI.init();
         System.out.println(ProtoJNI.getJNIEnv());

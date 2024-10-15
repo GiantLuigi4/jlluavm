@@ -27,11 +27,16 @@ public class LLVMBuilderRoot {
     public final LLVMValueRef CONST_FALSE;
     public final LLVMValueRef CONST_TRUE;
 
+    public final LLVMValueRef CONST_NULL_BYTE;
+
     public final LLVMValueRef CONST_0B;
     public final LLVMValueRef CONST_1B;
 
     public final LLVMValueRef CONST_0D;
     public final LLVMValueRef CONST_1D;
+
+    public final LLVMValueRef CONST_0L;
+    public final LLVMValueRef CONST_1L;
 
     public final LLVMTypeRef BIT;
     public final LLVMTypeRef BYTE;
@@ -76,8 +81,13 @@ public class LLVMBuilderRoot {
         CONST_FALSE = LLVM.LLVMConstInt(BIT, 0, 0);
         CONST_TRUE = LLVM.LLVMConstInt(BIT, 1, 0);
 
+        CONST_NULL_BYTE = LLVM.LLVMConstNull(BYTE);
+
         CONST_0D = loadDouble(0);
         CONST_1D = loadDouble(1);
+
+        CONST_0L = loadLong(0);
+        CONST_1L = loadLong(1);
 
         CONST_0B = loadByte((byte) 0);
         CONST_1B = loadByte((byte) 1);
