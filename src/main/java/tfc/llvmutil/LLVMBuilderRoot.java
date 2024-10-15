@@ -22,6 +22,9 @@ public class LLVMBuilderRoot {
         LLVMInitializeAggressiveInstCombiner(LLVM.LLVMGetGlobalPassRegistry());
     }
 
+    public final LLVMTypeRef LONG_PTR;
+    public final LLVMTypeRef INT_PTR;
+    public final LLVMTypeRef SHORT_PTR;
     public final LLVMTypeRef BYTE_PTR;
     public final LLVMTypeRef BIT_PTR;
     public final LLVMTypeRef VOID_PTR;
@@ -83,6 +86,9 @@ public class LLVMBuilderRoot {
 
         BIT_PTR = LLVM.LLVMPointerType(BIT, 0);
         BYTE_PTR = LLVM.LLVMPointerType(BYTE, 0);
+        SHORT_PTR = LLVM.LLVMPointerType(SHORT, 0);
+        INT_PTR = LLVM.LLVMPointerType(INT, 0);
+        LONG_PTR = LLVM.LLVMPointerType(LONG, 0);
         VOID_PTR = LLVM.LLVMPointerType(VOID, 0);
 
         CONST_FALSE = LLVM.LLVMConstInt(BIT, 0, 0);

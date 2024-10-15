@@ -2,6 +2,7 @@ package tfc.jlluavm.parse.scopes;
 
 import org.bytedeco.llvm.LLVM.LLVMTypeRef;
 import org.bytedeco.llvm.LLVM.LLVMValueRef;
+import tfc.jlluavm.parse.LUAValue;
 import tfc.llvmutil.LLVMBuilderRoot;
 import tfc.llvmutil.LLVMFunctionBuilder;
 
@@ -23,28 +24,36 @@ public class Scope {
         this.function = function;
     }
 
-    HashMap<String, LLVMValueRef> variables = new HashMap<>();
+    HashMap<String, LUAValue> variables = new HashMap<>();
 
-    public void addVariable(boolean local, String name, LLVMValueRef value) {
-        LLVMValueRef refr = variables.get(name);
+    // TODO: type needs to be a dynamic value
+    public void addVariable(boolean local, String name, LUAValue value) {
+        LUAValue refr = variables.get(name);
         if (refr == null) {
             if (local || parentScope == null) {
                 LLVMValueRef ptr = root.alloca(root.LONG);
-                root.setValue(ptr, root.cast(value, root.LONG));
-                variables.put(name, ptr);
+                root.setValue(ptr, root.cast(value.data, root.LONG));
+                variables.put(name, new LUAValue(
+                        value.type, ptr
+                ));
             } else {
                 parentScope.addVariable(local, name, value);
             }
-        } else root.setValue(refr, root.cast(value, root.LONG));
+        } else {
+            root.setValue(refr.data, root.cast(value.data, root.LONG));
+        }
     }
 
-    public LLVMValueRef getVariable(LLVMTypeRef type, String var) {
-        LLVMValueRef ref = variables.get(var);
+    public LUAValue getVariable(LLVMTypeRef type, String var) {
+        LUAValue ref = variables.get(var);
         if (ref == null) {
             Scope toCheck = parentScope;
             if (toCheck == null) toCheck = globalScope;
             return toCheck.getVariable(type, var);
         }
-        return root.cast(root.getValue(root.LONG, ref), type);
+        return new LUAValue(
+                ref.type,
+                root.cast(root.getValue(root.LONG, ref.data), type)
+        );
     }
 }

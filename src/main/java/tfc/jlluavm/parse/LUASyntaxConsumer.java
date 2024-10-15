@@ -5,6 +5,7 @@ import org.bytedeco.javacpp.PointerPointer;
 import org.bytedeco.llvm.LLVM.*;
 import org.bytedeco.llvm.global.LLVM;
 import org.lwjgl.system.Library;
+import org.lwjgl.system.MemoryUtil;
 import tfc.llvmutil.LLVMBuilderRoot;
 import tfc.llvmutil.LLVMFunctionBuilder;
 import tfc.jlluavm.parse.scopes.GlobalScope;
@@ -18,6 +19,7 @@ import java.util.ArrayList;
 import static org.bytedeco.llvm.global.LLVM.*;
 
 import org.lwjgl.system.JNI;
+import tfc.llvmutil.LLVMParamsBuilder;
 
 public class LUASyntaxConsumer {
     static int loopEliminationFactor = 2;
@@ -30,6 +32,10 @@ public class LUASyntaxConsumer {
     ArrayDeque<Scope> scopes = new ArrayDeque<>();
 
     LUAValue CONST_NIL;
+    LUAValue CONST_0;
+    LUAValue CONST_1;
+    LUAValue CONST_FALSE;
+    LUAValue CONST_TRUE;
 
     public LUASyntaxConsumer() {
         root = new LLVMBuilderRoot(
@@ -37,11 +43,12 @@ public class LUASyntaxConsumer {
         );
 
         global = new GlobalScope(root);
-        LLVMTypeRef params = root.trackValue(LLVMFunctionType(
-                root.LONG,
-                root.LONG,
-                1, 0
-        ));
+        LLVMTypeRef params = root.trackValue(
+                new LLVMParamsBuilder(root)
+                        .addArg(root.BYTE_PTR)
+                        .addArg(root.LONG_PTR)
+                        .addArg(root.LONG)
+                        .build(root.VOID));
         functionStack.push(root.function(
                 "$$module_lua_jit_$_root_entry_$_" + toString().replace("@", ""),
                 params
@@ -49,7 +56,11 @@ public class LUASyntaxConsumer {
         System.out.println("START SCOPE");
         scopes.push(global);
 
+        CONST_0 = new LUAValue(root, 0, root.CONST_0L);
+        CONST_1 = new LUAValue(root, 0, root.CONST_1L);
         CONST_NIL = new LUAValue(root, 4, root.CONST_0L);
+        CONST_FALSE = new LUAValue(root, 2, root.CONST_0L);
+        CONST_TRUE = new LUAValue(root, 2, root.CONST_1L);
     }
 
     private void pushScope() {
@@ -125,9 +136,14 @@ public class LUASyntaxConsumer {
             return;
         }
 
-        LLVMValueRef ref = acceptValue(tokenStream);
-        ref = root.cast(ref, root.LONG);
-        functionStack.peek().ret(ref);
+        LUAValue ref = acceptValue(tokenStream);
+        LLVMValueRef v0 = functionStack.peek().getParam(0, root.BYTE_PTR);
+        LLVMValueRef v1 = functionStack.peek().getParam(1, root.LONG_PTR);
+        root.setValue(v0, ref.type);
+        root.setValue(v1, ref.data);
+        functionStack.peek().ret();
+//        ref = root.cast(ref, root.LONG);
+//        functionStack.peek().ret(ref);
     }
 
     private String acceptVariable(boolean local, BufferedStream<LUAToken> tokenStream) {
@@ -138,7 +154,7 @@ public class LUASyntaxConsumer {
         System.out.print(" ");
         System.out.print(name);
         System.out.print(" = ");
-        LLVMValueRef value = acceptValue(tokenStream);
+        LUAValue value = acceptValue(tokenStream);
         // TODO: global variables (per file by default, might need to be configurable though)
         scopes.peek().addVariable(local, name, value);
         return name;
@@ -150,46 +166,57 @@ public class LUASyntaxConsumer {
         acceptVariable(local, tokenStream);
     }
 
-    private LLVMValueRef acceptSingleValue(BufferedStream<LUAToken> tokenStream) {
+    private LUAValue acceptSingleValue(BufferedStream<LUAToken> tokenStream) {
         if (tokenStream.current().type.equals("numeric")) {
-            return root.loadDouble(Double.parseDouble(tokenStream.current().text));
+            return new LUAValue(
+                    root, 1,
+                    root.loadDouble(Double.parseDouble(tokenStream.current().text))
+            );
         } else if (tokenStream.current().type.equals("literal")) {
             // TODO: scoped access to variables
             return scopes.peek().getVariable(root.DOUBLE, tokenStream.current().text);
         } else if (tokenStream.current().text.equals("(")) {
             tokenStream.advance();
-            LLVMValueRef ref = acceptValue(tokenStream);
+            LUAValue ref = acceptValue(tokenStream);
             tokenStream.advance();
             return ref;
             // TODO: remove
         } else if (tokenStream.current().type.equals("tmp_arg")) {
-            return functionStack.peek().getParamAsDouble(Integer.parseInt(tokenStream.current().text.substring(1)));
+            return new LUAValue(
+                    root, 1,
+                    functionStack.peek().getParamAsDouble(
+                            Integer.parseInt(tokenStream.current().text.substring(1)) + 2
+                    )
+            );
         }
         return null;
     }
 
-    private LLVMValueRef acceptValue(BufferedStream<LUAToken> tokenStream) {
+    private LUAValue acceptValue(BufferedStream<LUAToken> tokenStream) {
         return acceptValue(new ExpressionBuilder(), tokenStream);
     }
 
-    private LLVMValueRef acceptValue(ExpressionBuilder builder, BufferedStream<LUAToken> tokenStream) {
+    private LUAValue acceptValue(ExpressionBuilder builder, BufferedStream<LUAToken> tokenStream) {
         System.out.println(tokenStream.current().text);
         // TODO: calls, array access
         // TODO: functions are values!
-        LLVMValueRef ref = acceptSingleValue(tokenStream);
+        LUAValue ref = acceptSingleValue(tokenStream);
         if (ref != null) {
-            builder.addValue(ref);
+            // TODO: typing
+            builder.addValue(ref.getData(root, root.DOUBLE));
             while (Resolver.nextThing(tokenStream, 1) == Resolver.ThingType.OPERATION) {
                 tokenStream.advance();
                 builder.addOperation(tokenStream.current().text);
                 tokenStream.advance();
-                builder.addValue(acceptSingleValue(tokenStream));
+                builder.addValue(acceptSingleValue(tokenStream).getData(root, root.DOUBLE));
             }
-            return builder.build(root);
+            return new LUAValue(root, 0, builder.build(root));
         } else if (tokenStream.current().text.equals("true")) {
-            return root.CONST_TRUE;
+            return CONST_TRUE;
         } else if (tokenStream.current().text.equals("false")) {
-            return root.CONST_FALSE;
+            return CONST_FALSE;
+        } else if (tokenStream.current().text.equals("nil")) {
+            return CONST_NIL;
         }
         throw new RuntimeException("huh?");
     }
@@ -204,16 +231,16 @@ public class LUASyntaxConsumer {
 
         tokenStream.advance(2); // val ,
 
-        LLVMValueRef terminator = acceptValue(tokenStream);
+        LUAValue terminator = acceptValue(tokenStream);
         tokenStream.advance();
 
-        LLVMValueRef step;
+        LUAValue step;
         if (tokenStream.current().text.equals(",")) {
             tokenStream.advance();
             step = acceptValue(tokenStream);
             tokenStream.advance(); // value
         } else {
-            step = root.CONST_1D;
+            step = CONST_1;
         }
         System.out.println(tokenStream.current().text);
 
@@ -231,7 +258,7 @@ public class LUASyntaxConsumer {
         LLVMBasicBlockRef block = builder.createBlock("after_loop");
         LLVMBasicBlockRef body = builder.createBlock("loop_body");
 
-        LLVMValueRef condPN = root.compareG(step, root.CONST_0D);
+        LLVMValueRef condPN = root.compareG(step.getData(root, root.DOUBLE), root.CONST_0D);
         root.conditionalJump(condPN, startPos, startNeg);
 
         breakTo.push(block);
@@ -240,23 +267,24 @@ public class LUASyntaxConsumer {
             {
                 // negative header
                 builder.buildBlock(startNeg);
-                LLVMValueRef counter = scopes.peek().getVariable(root.DOUBLE, varName);
-                LLVMValueRef cond = root.compareGE(counter, terminator);
+                LUAValue counter = scopes.peek().getVariable(root.DOUBLE, varName);
+                LLVMValueRef cond = root.compareGE(counter.getData(root, root.DOUBLE), terminator.getData(root, root.DOUBLE));
                 root.conditionalJump(cond, body, block);
             }
             {
                 // positive header
                 builder.buildBlock(startPos);
-                LLVMValueRef counter = scopes.peek().getVariable(root.DOUBLE, varName);
-                LLVMValueRef cond = root.compareLE(counter, terminator);
+                LUAValue counter = scopes.peek().getVariable(root.DOUBLE, varName);
+                LLVMValueRef cond = root.compareLE(counter.getData(root, root.DOUBLE), terminator.getData(root, root.DOUBLE));
                 root.conditionalJump(cond, body, block);
             }
             {
                 // counter
                 builder.buildBlock(body);
-                LLVMValueRef counter = scopes.peek().getVariable(root.DOUBLE, varName);
-                LLVMValueRef counterNV = root.sum(counter, step);
-                scopes.peek().addVariable(true, varName, counterNV);
+                LUAValue counter = scopes.peek().getVariable(root.DOUBLE, varName);
+                LLVMValueRef counterNV = root.sum(counter.getData(root, root.DOUBLE), step.getData(root, root.DOUBLE)); // TODO: don't directly sum
+                LUAValue value = new LUAValue(counter.type, counterNV);
+                scopes.peek().addVariable(true, varName, value);
 
                 // body
                 pushScope();
@@ -281,7 +309,7 @@ public class LUASyntaxConsumer {
     private void acceptIf(BufferedStream<LUAToken> tokenStream, LLVMBasicBlockRef conclusion) {
         tokenStream.advance(); // if
 
-        LLVMValueRef condition = acceptValue(tokenStream);
+        LUAValue condition = acceptValue(tokenStream);
         LLVMFunctionBuilder builder = functionStack.peek();
         LLVMBasicBlockRef from = builder.activeBlock();
         LLVMBasicBlockRef body = builder.createBlock("body");
@@ -300,7 +328,7 @@ public class LUASyntaxConsumer {
         }
 
         builder.buildBlock(from);
-        root.conditionalJump(condition, body, to);
+        root.conditionalJump(condition.data, body, to);
 
         builder.buildBlock(to);
 
@@ -374,14 +402,18 @@ public class LUASyntaxConsumer {
         long addr = LLVM.LLVMGetFunctionAddress(engine, functionEntry.getName());
         long argV = Double.doubleToLongBits(21);
 
+        long bp = MemoryUtil.nmemAlloc(8);
+        long bv = MemoryUtil.nmemAlloc(8);
         nt = System.nanoTime();
-        long result = JNI.invokePP(argV, addr);
+        JNI.invokePPPV(
+                bp, bv,
+                argV,
+                addr
+        );
         nt1 = System.nanoTime();
-        System.out.println("Execution took: " + (nt1 - nt) + " ns");
-
-        nt = System.nanoTime();
-        result = JNI.invokePP(argV, addr);
-        nt1 = System.nanoTime();
+        long result = MemoryUtil.memGetLong(bv);
+        MemoryUtil.nmemFree(bv);
+        MemoryUtil.nmemFree(bp);
         System.out.println("Execution took: " + (nt1 - nt) + " ns");
 
         System.out.println();
