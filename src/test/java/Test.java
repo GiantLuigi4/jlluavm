@@ -13,7 +13,9 @@ public class Test {
         ProtoJNI.init();
         System.out.println(ProtoJNI.getJNIEnv());
         System.out.println("MID");
-        System.out.println(ProtoJNI.getStaticMethodID(Test.class, "main", "([Ljava/lang/String;)V"));
+        long methodID = ProtoJNI.getStaticMethodID(Test.class, "print", "(Ljava/lang/String;)V");
+        System.out.println(methodID);
+        ProtoJNI.callStaticVoid(ProtoJNI.class, methodID, "Hello!");
 
         for (int i = 0; i < 1; i++) {
             LUATokenizer tokenizer = new LUATokenizer();

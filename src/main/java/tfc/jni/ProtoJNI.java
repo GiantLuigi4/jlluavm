@@ -41,31 +41,28 @@ public class ProtoJNI {
         LLVMTypeRef envPtrPtr = root.pointerType(envPtr);
         LLVMTypeRef constCharPtr = root.BYTE_PTR;
 
-        LLVMFunctionBuilder getUTFFunc = root.functionPrototype(
-                "GetStringUTFChars",
-                new LLVMParamsBuilder(root)
-                        .addArg(envPtrPtr)
-                        .addArg(strPtr)
-                        .addArg(root.BYTE)
-                        .build(constCharPtr)
-        ).withConvention(LLVMCCallConv);
-        LLVMFunctionBuilder freeUTFFunc = root.functionPrototype(
-                "ReleaseStringUTFChars",
-                new LLVMParamsBuilder(root)
-                        .addArg(envPtrPtr)
-                        .addArg(strPtr)
-                        .addArg(constCharPtr)
-                        .build(root.VOID)
-        ).withConvention(LLVMCCallConv);
-        LLVMFunctionBuilder getMethodIDFunc = root.functionPrototype(
-                "GetMethodID",
-                new LLVMParamsBuilder(root)
-                        .addArg(envPtrPtr)
-                        .addArg(clzPtr)
-                        .addArg(constCharPtr)
-                        .addArg(constCharPtr)
-                        .build(root.LONG)
-        ).withConvention(LLVMCCallConv);
+        LLVMTypeRef getUTFType = new LLVMParamsBuilder(root)
+                .addArg(envPtrPtr)
+                .addArg(strPtr)
+                .addArg(root.BYTE)
+                .build(constCharPtr);
+        LLVMTypeRef freeUTFType = new LLVMParamsBuilder(root)
+                .addArg(envPtrPtr)
+                .addArg(strPtr)
+                .addArg(constCharPtr)
+                .build(root.VOID);
+        LLVMTypeRef getMethodType = new LLVMParamsBuilder(root)
+                .addArg(envPtrPtr)
+                .addArg(clzPtr)
+                .addArg(constCharPtr)
+                .addArg(constCharPtr)
+                .build(root.LONG);
+        LLVMTypeRef callVoidType = new LLVMParamsBuilder(root)
+                .addArg(envPtrPtr)
+                .addArg(clzPtr)
+                .addArg(root.LONG)
+                .addArg(strPtr)
+                .build(root.LONG, true);
 
         LLVMValueRef LONG0 = root.CONST_0L;
 
@@ -126,9 +123,9 @@ public class ProtoJNI {
                     "getMethodID"
             );
 
-            LLVMValueRef getUTFLoaded = root.getValue(root.pointerType(getUTFFunc.type), getUTF);
-            LLVMValueRef freeUTFLoaded = root.getValue(root.pointerType(freeUTFFunc.type), freeUTF);
-            LLVMValueRef getMethodIDLoaded = root.getValue(root.pointerType(getMethodIDFunc.type), getMethodID);
+            LLVMValueRef getUTFLoaded = root.getValue(root.pointerType(getUTFType), getUTF);
+            LLVMValueRef freeUTFLoaded = root.getValue(root.pointerType(freeUTFType), freeUTF);
+            LLVMValueRef getMethodIDLoaded = root.getValue(root.pointerType(getMethodType), getMethodID);
 
             LLVMValueRef nameChr = root.call(getUTFLoaded, envRef, nameJSTR, jniFalse);
             LLVMValueRef signChr = root.call(getUTFLoaded, envRef, signJSTR, jniFalse);
@@ -181,9 +178,9 @@ public class ProtoJNI {
                     "getMethodID"
             );
 
-            LLVMValueRef getUTFLoaded = root.getValue(root.pointerType(getUTFFunc.type), getUTF);
-            LLVMValueRef freeUTFLoaded = root.getValue(root.pointerType(freeUTFFunc.type), freeUTF);
-            LLVMValueRef getMethodIDLoaded = root.getValue(root.pointerType(getMethodIDFunc.type), getMethodID);
+            LLVMValueRef getUTFLoaded = root.getValue(root.pointerType(getUTFType), getUTF);
+            LLVMValueRef freeUTFLoaded = root.getValue(root.pointerType(freeUTFType), freeUTF);
+            LLVMValueRef getMethodIDLoaded = root.getValue(root.pointerType(getMethodType), getMethodID);
 
             LLVMValueRef nameChr = root.call(getUTFLoaded, envRef, nameJSTR, jniFalse);
             LLVMValueRef signChr = root.call(getUTFLoaded, envRef, signJSTR, jniFalse);
@@ -199,63 +196,43 @@ public class ProtoJNI {
 
             builder.ret(res);
         }
-//        {
-//            builder = root.function(
-//                    prefix + "_callStaticVoid",
-//                    new LLVMParamsBuilder(root)
-//                            .addArg(envPtrPtr).addArg(clzPtr)
-//                            .addArg(clzPtr)
-//                            .addArg(strPtr)
-//                            .build(root.LONG)
-//            ).withConvention(LLVMCCallConv).export().buildRoot();
-//
-//            LLVMValueRef envRef = builder.getParam(0, envPtrPtr);
-//            LLVMValueRef clz = builder.getParam(2, clzPtr);
-//            LLVMValueRef nameJSTR = builder.getParam(3, strPtr);
-//            LLVMValueRef signJSTR = builder.getParam(4, strPtr);
-//
-//            LLVMValueRef envLoaded = root.getValue(envPtr, envRef);
-//
-//            LLVMValueRef getUTF = LLVM.LLVMBuildInBoundsGEP(
-//                    root.builder, envLoaded,
-//                    getUTFParams, 2,
-//                    "getUTF"
-//            );
-//            PointerPointer<LLVMValueRef> params1 = root.trackValue(new PointerPointer<>(2));
-//            params1.put(0, root.loadLong(0));
-//            params1.put(1, root.loadInt(170)); // 170 == ReleaseStringUTF
-//            LLVMValueRef freeUTF = LLVM.LLVMBuildInBoundsGEP(
-//                    root.builder, envLoaded,
-//                    params1, 2,
-//                    "freeUTF"
-//            );
-//            PointerPointer<LLVMValueRef> params2 = root.trackValue(new PointerPointer<>(2));
-//            params2.put(0, root.loadLong(0));
-//            params2.put(1, root.loadInt(141)); // 141 == CallStaticVoid
-//            LLVMValueRef getMethodID = LLVM.LLVMBuildInBoundsGEP(
-//                    root.builder, envLoaded,
-//                    params2, 2,
-//                    "callVoid"
-//            );
-//
-//            LLVMValueRef getUTFLoaded = root.getValue(root.pointerType(getUTFFunc.type), getUTF);
-//            LLVMValueRef freeUTFLoaded = root.getValue(root.pointerType(freeUTFFunc.type), freeUTF);
-//            LLVMValueRef getMethodIDLoaded = root.getValue(root.pointerType(getMethodIDFunc.type), getMethodID);
-//
-//            LLVMValueRef nameChr = root.call(getUTFLoaded, envRef, nameJSTR, jniFalse);
-//            LLVMValueRef signChr = root.call(getUTFLoaded, envRef, signJSTR, jniFalse);
-//
-//            LLVMValueRef res = root.call(
-//                    getMethodIDLoaded,
-//                    envRef, clz,
-//                    nameChr, signChr
-//            );
-//
-//            root.callV(freeUTFLoaded, envRef, nameJSTR, nameChr);
-//            root.callV(freeUTFLoaded, envRef, signJSTR, signChr);
-//
-//            builder.ret(res);
-//        }
+        {
+            builder = root.function(
+                    prefix + "_callStaticVoid",
+                    new LLVMParamsBuilder(root)
+                            .addArg(envPtrPtr).addArg(clzPtr)
+                            .addArg(clzPtr)
+                            .addArg(root.LONG)
+                            .addArg(strPtr)
+                            .build(root.LONG)
+            ).withConvention(LLVMCCallConv).export().buildRoot();
+
+            LLVMValueRef envRef = builder.getParam(0, envPtrPtr);
+            LLVMValueRef clz = builder.getParam(2, clzPtr);
+            LLVMValueRef method = builder.getParam(3, root.LONG);
+            LLVMValueRef argJSTR = builder.getParam(4, strPtr);
+
+            LLVMValueRef envLoaded = root.getValue(envPtr, envRef);
+
+            PointerPointer<LLVMValueRef> params2 = root.trackValue(new PointerPointer<>(2));
+            params2.put(0, root.loadLong(0));
+            params2.put(1, root.loadInt(141)); // 141 == CallStaticVoid
+            LLVMValueRef callVoid = LLVM.LLVMBuildInBoundsGEP(
+                    root.builder, envLoaded,
+                    params2, 2,
+                    "callVoid"
+            );
+
+            LLVMValueRef callVoidLoaded = root.getValue(root.pointerType(callVoidType), callVoid);
+
+            LLVMValueRef res = root.call(
+                    callVoidLoaded,
+                    envRef, clz,
+                    method, argJSTR
+            );
+
+            builder.ret(res);
+        }
 
         LLVMModuleRef moduleRef = root.getModule();
         root.disposeBuilder();
@@ -264,6 +241,11 @@ public class ProtoJNI {
         if (!root.validateFunctions()) {
             throw new RuntimeException("Failed to prototype JNI.");
         }
+        LLVMPassManagerRef pass = root.standardOptimizer(2);
+        LLVMRunPassManager(pass, root.getModule());
+        LLVMDisposePassManager(pass);
+
+        root.dump();
 
 
         LLVMExecutionEngineRef engine = new LLVMExecutionEngineRef();
@@ -274,7 +256,7 @@ public class ProtoJNI {
             throw new RuntimeException("Failed to prototype JNI.");
         }
 
-        JNINativeMethod.Buffer buffer = JNINativeMethod.calloc(3);
+        JNINativeMethod.Buffer buffer = JNINativeMethod.calloc(4);
 
         ArrayList<ByteBuffer> buffers = new ArrayList<>();
 
@@ -312,6 +294,16 @@ public class ProtoJNI {
         method.name(name);
         buffers.add(name);
 
+        addr = LLVM.LLVMGetFunctionAddress(engine, prefix + "_callStaticVoid");
+        method = buffer.get(3);
+        method.fnPtr(addr);
+        sig = MemoryUtil.memUTF8("(Ljava/lang/Class;JLjava/lang/String;)J");
+        method.signature(sig);
+        buffers.add(sig);
+        name = MemoryUtil.memUTF8("callStaticVoid");
+        method.name(name);
+        buffers.add(name);
+
         JNINativeInterface.RegisterNatives(
                 ProtoJNI.class,
                 buffer
@@ -333,4 +325,6 @@ public class ProtoJNI {
     public static native long getStaticMethodID(Class<?> clz, String name, String signature);
 
     public static native long getInstanceMethodID(Class<?> clz, String name, String signature);
+
+    public static native long callStaticVoid(Class<?> clz, long methodID, String arg);
 }

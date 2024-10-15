@@ -31,6 +31,21 @@ public class LLVMParamsBuilder {
         );
     }
 
+    public LLVMTypeRef build(LLVMTypeRef ret, boolean varArgs) {
+        PointerPointer<LLVMTypeRef> paramsPtr = root.trackValue(new PointerPointer<>(args.size()));
+        for (int i = 0; i < args.size(); i++)
+            paramsPtr.put(i, root.trackValue(args.get(i)));
+
+        return root.trackValue(
+                LLVMFunctionType(
+                        ret,
+                        paramsPtr,
+                        args.size(),
+                        varArgs ? 1 : 0
+                )
+        );
+    }
+
     public LLVMParamsBuilder addArg(LLVMTypeRef type) {
         args.add(type);
         return this;
