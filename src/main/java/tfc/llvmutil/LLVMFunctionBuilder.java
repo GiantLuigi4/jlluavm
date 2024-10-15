@@ -119,4 +119,9 @@ public class LLVMFunctionBuilder {
     public String getName() {
         return name;
     }
+
+    public LLVMFunctionBuilder export() {
+        LLVM.LLVMSetLinkage(function, LLVMDLLExportLinkage);
+        return this;
+    }
 }

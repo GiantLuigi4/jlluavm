@@ -74,20 +74,20 @@ public class ProtoJNI {
                     new LLVMParamsBuilder(root)
                             .addArg(envPtrPtr).addArg(clzPtr)
                             .build(root.LONG)
-            ).withConvention(LLVMCCallConv).buildRoot();
+            ).withConvention(LLVMCCallConv).export().buildRoot();
             LLVMValueRef val =root.getValue(envPtr, builder.getParam(0, envPtrPtr));
             builder.ret(root.ptrCast(val, root.LONG));
         }
         {
             builder = root.function(
-                    prefix + "_getJMethod",
+                    prefix + "_getSJMethod",
                     new LLVMParamsBuilder(root)
                             .addArg(envPtrPtr).addArg(clzPtr)
                             .addArg(clzPtr)
                             .addArg(strPtr)
                             .addArg(strPtr)
                             .build(root.LONG)
-            ).withConvention(LLVMCCallConv).buildRoot();
+            ).withConvention(LLVMCCallConv).export().buildRoot();
 
             LLVMValueRef envRef = builder.getParam(0, envPtrPtr);
             LLVMValueRef clz = builder.getParam(2, clzPtr);
@@ -177,13 +177,13 @@ public class ProtoJNI {
         method.name(name);
         buffers.add(name);
 
-        addr = LLVM.LLVMGetFunctionAddress(engine, prefix + "_getJMethod");
+        addr = LLVM.LLVMGetFunctionAddress(engine, prefix + "_getSJMethod");
         method = buffer.get(1);
         method.fnPtr(addr);
         sig = MemoryUtil.memUTF8("(Ljava/lang/Class;Ljava/lang/String;Ljava/lang/String;)J");
         method.signature(sig);
         buffers.add(sig);
-        name = MemoryUtil.memUTF8("getMethodID");
+        name = MemoryUtil.memUTF8("getStaticMethodID");
         method.name(name);
         buffers.add(name);
 
@@ -200,5 +200,5 @@ public class ProtoJNI {
 
     public static native long getJNIEnv();
 
-    public static native long getMethodID(Class<?> clz, String name, String signature);
+    public static native long getStaticMethodID(Class<?> clz, String name, String signature);
 }
