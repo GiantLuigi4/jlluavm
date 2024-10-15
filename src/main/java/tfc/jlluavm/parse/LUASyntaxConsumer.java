@@ -29,6 +29,8 @@ public class LUASyntaxConsumer {
     GlobalScope global;
     ArrayDeque<Scope> scopes = new ArrayDeque<>();
 
+    LUAValue CONST_NIL;
+
     public LUASyntaxConsumer() {
         root = new LLVMBuilderRoot(
                 "module_lua_jit_" + toString().replace("@", "")
@@ -46,6 +48,8 @@ public class LUASyntaxConsumer {
         ).buildRoot());
         System.out.println("START SCOPE");
         scopes.push(global);
+
+        CONST_NIL = new LUAValue(root, 4, root.CONST_0L);
     }
 
     private void pushScope() {

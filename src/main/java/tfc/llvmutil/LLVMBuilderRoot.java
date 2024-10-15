@@ -33,6 +33,11 @@ public class LLVMBuilderRoot {
 
     public final LLVMValueRef CONST_0B;
     public final LLVMValueRef CONST_1B;
+    public final LLVMValueRef CONST_2B;
+    public final LLVMValueRef CONST_3B;
+    public final LLVMValueRef CONST_4B;
+    public final LLVMValueRef CONST_5B;
+    public final LLVMValueRef CONST_6B;
 
     public final LLVMValueRef CONST_0D;
     public final LLVMValueRef CONST_1D;
@@ -93,6 +98,11 @@ public class LLVMBuilderRoot {
 
         CONST_0B = loadByte((byte) 0);
         CONST_1B = loadByte((byte) 1);
+        CONST_2B = loadByte((byte) 2);
+        CONST_3B = loadByte((byte) 3);
+        CONST_4B = loadByte((byte) 4);
+        CONST_5B = loadByte((byte) 5);
+        CONST_6B = loadByte((byte) 6);
     }
 
     public void position(LLVMBasicBlockRef root) {

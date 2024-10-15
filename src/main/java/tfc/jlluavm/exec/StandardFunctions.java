@@ -8,8 +8,8 @@ public class StandardFunctions {
     // types:
     // 0: int/long
     // 1: float/double
-    // 2: string
-    // 3: array
+    // 2: boolean
+    // 3: string
     // 4: table
     // 5: function
     // 6: jni function
