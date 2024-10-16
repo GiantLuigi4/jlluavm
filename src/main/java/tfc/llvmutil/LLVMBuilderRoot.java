@@ -146,14 +146,14 @@ public class LLVMBuilderRoot {
     int load_indx = 0;
 
     public LLVMValueRef loadDouble(double value) {
-        return cast(
+        return bitCast(
                 loadLong(Double.doubleToLongBits(value)),
                 DOUBLE
         );
     }
 
     public LLVMValueRef loadFloat(float value) {
-        return cast(
+        return bitCast(
                 loadInt(Float.floatToIntBits(value)),
                 FLOAT
         );
@@ -182,7 +182,7 @@ public class LLVMBuilderRoot {
         return llvmTypeRef;
     }
 
-    public LLVMValueRef cast(LLVMValueRef value, LLVMTypeRef toType) {
+    public LLVMValueRef bitCast(LLVMValueRef value, LLVMTypeRef toType) {
         return trackValue(LLVM.LLVMBuildBitCast(
                 builder, value,
                 toType, nextDiscriminator("cast")
@@ -262,6 +262,10 @@ public class LLVMBuilderRoot {
         return trackValue(LLVM.LLVMBuildFCmp(builder, LLVMRealOEQ, lh, rh, nextDiscriminator("comp")));
     }
 
+    public LLVMValueRef intCompareE(LLVMValueRef lh, LLVMValueRef rh) {
+        return trackValue(LLVM.LLVMBuildICmp(builder, LLVMIntEQ, lh, rh, nextDiscriminator("comp")));
+    }
+
     public LLVMValueRef compareNE(LLVMValueRef lh, LLVMValueRef rh) {
         return trackValue(LLVM.LLVMBuildFCmp(builder, LLVMRealONE, lh, rh, nextDiscriminator("comp")));
     }
@@ -279,7 +283,7 @@ public class LLVMBuilderRoot {
     }
 
     public void unreachable() {
-        LLVM.LLVMBuildUnreachable(builder);
+        trackValue(LLVM.LLVMBuildUnreachable(builder));
     }
 
     public LLVMStructBuilder createStruct(String name) {
@@ -353,7 +357,7 @@ public class LLVMBuilderRoot {
     }
 
     public LLVMTypeRef pointerType(LLVMTypeRef bytePtr) {
-        return LLVM.LLVMPointerType(bytePtr, 0);
+        return trackValue(LLVM.LLVMPointerType(bytePtr, 0));
     }
 
     public LLVMPassManagerRef standardOptimizer(int loopEliminationFactor) {
@@ -434,5 +438,31 @@ public class LLVMBuilderRoot {
 //        LLVMAddNewGVNPass(pass);
 
         return pass;
+    }
+
+    public LLVMValueRef and(LLVMValueRef left, LLVMValueRef right) {
+        return trackValue(LLVM.LLVMBuildAnd(builder, left, right, "cond_and"));
+    }
+
+    public enum CastOp {
+        SIGNED_INT_TO_FLOAT(38),
+        UNSIGNED_INT_TO_FLOAT(39),
+        ;
+
+        int id;
+
+        CastOp(int id) {
+            this.id = id;
+        }
+    }
+
+    public LLVMValueRef cast(CastOp op, LLVMValueRef value, LLVMTypeRef to) {
+        return trackValue(LLVM.LLVMBuildCast(
+                builder,
+                op.id,
+                value,
+                to,
+                "cast_" + op.name()
+        ));
     }
 }

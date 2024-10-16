@@ -31,16 +31,20 @@ public class Scope {
         LUAValue refr = variables.get(name);
         if (refr == null) {
             if (local || parentScope == null) {
-                LLVMValueRef ptr = root.alloca(root.LONG);
-                root.setValue(ptr, root.cast(value.data, root.LONG));
+                LLVMValueRef ptrT = root.alloca(root.BYTE, name + "_type_ptr");
+                root.setValue(ptrT, root.bitCast(value.type, root.BYTE));
+
+                LLVMValueRef ptr = root.alloca(root.LONG, name + "_value_ptr");
+                root.setValue(ptr, root.bitCast(value.data, root.LONG));
                 variables.put(name, new LUAValue(
-                        value.type, ptr
+                        ptrT, ptr
                 ));
             } else {
                 parentScope.addVariable(local, name, value);
             }
         } else {
-            root.setValue(refr.data, root.cast(value.data, root.LONG));
+            root.setValue(refr.type, root.bitCast(value.type, root.BYTE));
+            root.setValue(refr.data, root.bitCast(value.data, root.LONG));
         }
     }
 
@@ -52,8 +56,9 @@ public class Scope {
             return toCheck.getVariable(type, var);
         }
         return new LUAValue(
-                ref.type,
-                root.cast(root.getValue(root.LONG, ref.data), type)
+                false,
+                root.bitCast(root.getValue(root.BYTE, ref.type), root.BYTE),
+                root.bitCast(root.getValue(root.LONG, ref.data), type)
         );
     }
 }

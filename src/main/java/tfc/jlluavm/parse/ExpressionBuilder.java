@@ -13,7 +13,7 @@ public class ExpressionBuilder {
 
     LUAValue toLUA(LLVMBuilderRoot root, LLVMValueRef typeL, LLVMValueRef typeR, LLVMValueRef refOut) {
         // TODO: conjoin types
-        return new LUAValue(false, root.CONST_0L, refOut);
+        return new LUAValue(false, root.CONST_0B, refOut);
     }
 
     LUAValue toLUA(LLVMBuilderRoot root, LLVMValueRef typeOut, LLVMValueRef refOut) {

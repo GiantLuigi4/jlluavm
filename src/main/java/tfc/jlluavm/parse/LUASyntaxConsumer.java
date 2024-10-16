@@ -166,10 +166,17 @@ public class LUASyntaxConsumer {
 
     private LUAValue acceptSingleValue(BufferedStream<LUAToken> tokenStream) {
         if (tokenStream.current().type.equals("numeric")) {
-            return new LUAValue(
-                    root, 1,
-                    root.loadDouble(Double.parseDouble(tokenStream.current().text))
-            );
+            if (tokenStream.current().text.contains(".")) {
+                return new LUAValue(
+                        root, 1,
+                        root.loadDouble(Double.parseDouble(tokenStream.current().text))
+                );
+            } else {
+                return new LUAValue(
+                        root, 0,
+                        root.loadLong(Long.parseLong(tokenStream.current().text))
+                );
+            }
         } else if (tokenStream.current().type.equals("literal")) {
             // TODO: scoped access to variables
             return scopes.peek().getVariable(root.DOUBLE, tokenStream.current().text);
@@ -255,6 +262,12 @@ public class LUASyntaxConsumer {
         LLVMBasicBlockRef startNeg = builder.createBlock("start_loop_n");
         LLVMBasicBlockRef block = builder.createBlock("after_loop");
         LLVMBasicBlockRef body = builder.createBlock("loop_body");
+
+        {
+            LUAValue counter = scopes.peek().getVariable(root.DOUBLE, varName);
+            scopes.peek().addVariable(true, varName, counter.coerce(builder, root, step));
+            step = step.coerce(builder, root, counter);
+        }
 
         LLVMValueRef condPN = root.compareG(step.getData(root, root.DOUBLE), root.CONST_0D);
         root.conditionalJump(condPN, startPos, startNeg);
@@ -402,23 +415,32 @@ public class LUASyntaxConsumer {
         long addr = LLVM.LLVMGetFunctionAddress(engine, functionEntry.getName());
         long argV = Double.doubleToLongBits(21);
 
-        long bp = MemoryUtil.nmemAlloc(8);
+        System.out.println("Running entry() with MCJIT...");
+        long bp = MemoryUtil.nmemAlloc(1);
         long bv = MemoryUtil.nmemAlloc(8);
         nt = System.nanoTime();
         JNI.invokePPPV(
                 bp, bv,
-                argV,
-                addr
+                argV, addr
         );
         nt1 = System.nanoTime();
+        byte type = MemoryUtil.memGetByte(bp);
         long result = MemoryUtil.memGetLong(bv);
         MemoryUtil.nmemFree(bv);
         MemoryUtil.nmemFree(bp);
         System.out.println("Execution took: " + (nt1 - nt) + " ns");
 
         System.out.println();
-        System.out.println("Running entry() with MCJIT...");
-        System.out.println("Result: " + Double.longBitsToDouble(result));
+        switch (type) {
+            case 0 -> System.out.println("Result: " + result);
+            case 1 -> System.out.println("Result: " + Double.longBitsToDouble(result));
+            default -> throw new RuntimeException("not a directly displayable type");
+        }
+        switch (type) {
+            case 0 -> System.out.println("As Double: " + Double.longBitsToDouble(result));
+            case 1 -> System.out.println("As Long: " + result);
+            default -> throw new RuntimeException("not a directly displayable type");
+        }
     }
 
     public void acceptCurrent(BufferedStream<LUAToken> tokenStream) {

@@ -22,17 +22,11 @@ public class Test {
             LUASyntaxConsumer consumer = new LUASyntaxConsumer();
 
             BufferedStream<LUAToken> tokenStream = tokenizer.tokenStream("""
-                    varA = !0
+                    varA = 3
                     
-                    for i = 100, 50, (0-1)
-                    do
-                        i = i + 1
-                        varA = varA + i
-                        for i = 100, 50, (0-1)
-                        do
-                            i = i + 1
-                            varA = varA + i
-                        end
+                    if !0 > 20
+                    then
+                        varA = varA + 0.5
                     end
                     
                     return varA

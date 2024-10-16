@@ -68,7 +68,7 @@ public class LLVMFunctionBuilder {
             ref = LLVMHelper.getParam(function, index);
             params.put(
                     index,
-                    ref = builder.cast(ref, builder.DOUBLE)
+                    ref = builder.bitCast(ref, builder.DOUBLE)
             );
         }
         return ref;
@@ -80,7 +80,7 @@ public class LLVMFunctionBuilder {
             ref = LLVMHelper.getParam(function, index);
             params.put(
                     index,
-                    ref = builder.cast(ref, type)
+                    ref = builder.bitCast(ref, type)
             );
         }
         return ref;
