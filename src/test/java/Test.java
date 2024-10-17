@@ -1,3 +1,4 @@
+import tfc.jlluavm.natives.Map;
 import tfc.jlluavm.parse.util.BufferedStream;
 import tfc.jlluavm.parse.LUASyntaxConsumer;
 import tfc.jlluavm.parse.LUAToken;
@@ -16,6 +17,8 @@ public class Test {
         long methodID = ProtoJNI.getStaticMethodID(Test.class, "print", "(Ljava/lang/String;)V");
         System.out.println(methodID);
         ProtoJNI.callStaticVoid(ProtoJNI.class, methodID, "Hello!");
+
+        Map.init();
 
         for (int i = 0; i < 1; i++) {
             LUATokenizer tokenizer = new LUATokenizer();

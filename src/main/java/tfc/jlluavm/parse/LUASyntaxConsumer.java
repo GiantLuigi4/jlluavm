@@ -6,6 +6,8 @@ import org.bytedeco.llvm.LLVM.*;
 import org.bytedeco.llvm.global.LLVM;
 import org.lwjgl.system.Library;
 import org.lwjgl.system.MemoryUtil;
+import tfc.jlluavm.exec.StandardFunctions;
+import tfc.jni.ProtoJNI;
 import tfc.llvmutil.LLVMBuilderRoot;
 import tfc.llvmutil.LLVMFunctionBuilder;
 import tfc.jlluavm.parse.scopes.GlobalScope;
@@ -209,6 +211,7 @@ public class LUASyntaxConsumer {
                     ExpressionBuilder.Operation.forName(text), val
             );
         }
+        // TODO: exponentiation should be handled here
         return null;
     }
 
@@ -233,7 +236,7 @@ public class LUASyntaxConsumer {
             }
             return builder.build(functionBuilder, root);
         }
-        throw new RuntimeException("huh?");
+        throw new RuntimeException("Unexpected symbol " + tokenStream.current().text);
     }
 
     private final BytePointer error = new BytePointer();
@@ -453,6 +456,17 @@ public class LUASyntaxConsumer {
         }
     }
 
+    private void acceptCall(BufferedStream<LUAToken> tokenStream) {
+        if (tokenStream.current().text.equals("print")) {
+            // TODO: get value from scope
+            long handle = ProtoJNI.getStaticMethodID(StandardFunctions.class, "print", "(BJJ)V");
+            System.out.println(handle);
+            throw new RuntimeException("NYI");
+        } else {
+            throw new RuntimeException("Calls not supported yet; hardcoded to only a few select methods");
+        }
+    }
+
     public void acceptCurrent(BufferedStream<LUAToken> tokenStream) {
         if (tokenStream.current() == null) return;
 
@@ -466,6 +480,7 @@ public class LUASyntaxConsumer {
             case RETURN -> acceptReturn(tokenStream);
             case DO -> acceptDo(tokenStream);
             case BREAK -> acceptBreak(tokenStream);
+            case CALL -> acceptCall(tokenStream);
             default -> System.out.println("TOKEN: " + tokenStream.current().text);
         }
     }

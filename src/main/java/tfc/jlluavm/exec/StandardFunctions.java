@@ -15,7 +15,7 @@ public class StandardFunctions {
     // 6: jni function
 
     @LUABound(name = "print", scope = "global")
-    public static void print(long dOut, byte type, long data) {
+    public static void print(byte type, long dOut, long data) {
         switch (type) {
             case 0 -> System.out.println(data);
             case 1 -> System.out.println(Double.longBitsToDouble(data));
@@ -31,7 +31,7 @@ public class StandardFunctions {
         public static double PI = Math.PI;
 
         @LUABound(name = "cos")
-        public static void cos(long dOut, byte type, long value) {
+        public static void cos(byte type, long dOut, long value) {
             double out = switch (type) {
                 case 0 -> Math.cos(value);
                 case 1 -> Math.cos(Double.longBitsToDouble(value));
@@ -43,7 +43,7 @@ public class StandardFunctions {
         }
 
         @LUABound(name = "sin")
-        public static void sin(long dOut, byte type, long value) {
+        public static void sin(byte type, long dOut, long value) {
             double out = switch (type) {
                 case 0 -> Math.sin(value);
                 case 1 -> Math.sin(Double.longBitsToDouble(value));
@@ -55,7 +55,7 @@ public class StandardFunctions {
         }
 
         @LUABound(name = "exp")
-        public static void exp(long dOut, byte type, long value) {
+        public static void exp(byte type, long dOut, long value) {
             double out = switch (type) {
                 case 0 -> Math.exp(value);
                 case 1 -> Math.exp(Double.longBitsToDouble(value));
@@ -67,7 +67,7 @@ public class StandardFunctions {
         }
 
         @LUABound(name = "sqrt")
-        public static void sqrt(long dOut, byte type, long value) {
+        public static void sqrt(byte type, long dOut, long value) {
             double out = switch (type) {
                 case 0 -> Math.sqrt(value);
                 case 1 -> Math.sqrt(Double.longBitsToDouble(value));
@@ -79,7 +79,7 @@ public class StandardFunctions {
         }
 
         @LUABound(name = "floor")
-        public static void floor(long dOut, byte type, long value) {
+        public static void floor(byte type, long dOut, long value) {
             double out = switch (type) {
                 case 0 -> Math.floor(value); // TODO: should output a long
                 case 1 -> Math.floor(Double.longBitsToDouble(value));
@@ -91,7 +91,7 @@ public class StandardFunctions {
         }
 
         @LUABound(name = "ceil")
-        public static void ceil(long dOut, byte type, long value) {
+        public static void ceil(byte type, long dOut, long value) {
             double out = switch (type) {
                 case 0 -> Math.ceil(value); // TODO: should output a long
                 case 1 -> Math.ceil(Double.longBitsToDouble(value));
@@ -103,7 +103,7 @@ public class StandardFunctions {
         }
 
         @LUABound(name = "abs")
-        public static void abs(long dOut, byte type, long value) {
+        public static void abs(byte type, long dOut, long value) {
             double out = switch (type) {
                 case 0 -> Math.abs(value); // TODO: should output a long
                 case 1 -> Math.abs(Double.longBitsToDouble(value));
@@ -115,7 +115,7 @@ public class StandardFunctions {
         }
 
         @LUABound(name = "pow")
-        public static void pow(long dOut, byte type, long value, byte type1, long value1) {
+        public static void pow(byte type, long dOut, long value, byte type1, long value1) {
             double lh = switch (type) {
                 case 0 -> value;
                 case 1 -> Double.longBitsToDouble(value);
