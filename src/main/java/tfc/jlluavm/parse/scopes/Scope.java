@@ -48,17 +48,17 @@ public class Scope {
         }
     }
 
-    public LUAValue getVariable(LLVMTypeRef type, String var) {
+    public LUAValue getVariable(String var) {
         LUAValue ref = variables.get(var);
         if (ref == null) {
             Scope toCheck = parentScope;
             if (toCheck == null) toCheck = globalScope;
-            return toCheck.getVariable(type, var);
+            return toCheck.getVariable(var);
         }
         return new LUAValue(
                 false,
-                root.bitCast(root.getValue(root.BYTE, ref.type), root.BYTE),
-                root.bitCast(root.getValue(root.LONG, ref.data), type)
+                root.getValue(root.BYTE, ref.type),
+                root.getValue(root.LONG, ref.data)
         );
     }
 }

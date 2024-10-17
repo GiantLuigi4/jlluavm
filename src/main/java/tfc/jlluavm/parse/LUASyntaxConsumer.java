@@ -179,7 +179,7 @@ public class LUASyntaxConsumer {
             }
         } else if (tokenStream.current().type.equals("literal")) {
             // TODO: scoped access to variables
-            return scopes.peek().getVariable(root.DOUBLE, tokenStream.current().text);
+            return scopes.peek().getVariable(tokenStream.current().text);
         } else if (tokenStream.current().text.equals("(")) {
             tokenStream.advance();
             LUAValue ref = acceptValue(tokenStream);
@@ -207,6 +207,7 @@ public class LUASyntaxConsumer {
         // TODO: functions are values!
         LUAValue ref = acceptSingleValue(tokenStream);
         if (ref != null) {
+            LLVMFunctionBuilder functionBuilder = functionStack.peek();
             // TODO: typing
             builder.addValue(ref);
             while (Resolver.nextThing(tokenStream, 1) == Resolver.ThingType.OPERATION) {
@@ -215,7 +216,7 @@ public class LUASyntaxConsumer {
                 tokenStream.advance();
                 builder.addValue(acceptSingleValue(tokenStream));
             }
-            return builder.build(root);
+            return builder.build(functionBuilder, root);
         } else if (tokenStream.current().text.equals("true")) {
             return CONST_TRUE;
         } else if (tokenStream.current().text.equals("false")) {
@@ -264,7 +265,7 @@ public class LUASyntaxConsumer {
         LLVMBasicBlockRef body = builder.createBlock("loop_body");
 
         {
-            LUAValue counter = scopes.peek().getVariable(root.DOUBLE, varName);
+            LUAValue counter = scopes.peek().getVariable(varName);
             scopes.peek().addVariable(true, varName, counter.coerce(builder, root, step));
             step = step.coerce(builder, root, counter);
         }
@@ -278,21 +279,21 @@ public class LUASyntaxConsumer {
             {
                 // negative header
                 builder.buildBlock(startNeg);
-                LUAValue counter = scopes.peek().getVariable(root.DOUBLE, varName);
+                LUAValue counter = scopes.peek().getVariable(varName);
                 LLVMValueRef cond = root.compareGE(counter.getData(root, root.DOUBLE), terminator.getData(root, root.DOUBLE));
                 root.conditionalJump(cond, body, block);
             }
             {
                 // positive header
                 builder.buildBlock(startPos);
-                LUAValue counter = scopes.peek().getVariable(root.DOUBLE, varName);
+                LUAValue counter = scopes.peek().getVariable(varName);
                 LLVMValueRef cond = root.compareLE(counter.getData(root, root.DOUBLE), terminator.getData(root, root.DOUBLE));
                 root.conditionalJump(cond, body, block);
             }
             {
                 // counter
                 builder.buildBlock(body);
-                LUAValue counter = scopes.peek().getVariable(root.DOUBLE, varName);
+                LUAValue counter = scopes.peek().getVariable(varName);
                 LLVMValueRef counterNV = root.sum(counter.getData(root, root.DOUBLE), step.getData(root, root.DOUBLE)); // TODO: don't directly sum
                 LUAValue value = new LUAValue(counter.type, counterNV);
                 scopes.peek().addVariable(true, varName, value);
@@ -341,7 +342,7 @@ public class LUASyntaxConsumer {
         builder.buildBlock(from);
 
         // TODO: throw LUA exception if not bool
-        root.conditionalJump(condition.getData(root, root.BIT), body, to);
+        root.conditionalJump(root.truncate(condition.data, root.BIT), body, to);
 
         builder.buildBlock(to);
 

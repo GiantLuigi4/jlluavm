@@ -3,6 +3,7 @@ package tfc.jlluavm.parse;
 import org.bytedeco.llvm.LLVM.LLVMValueRef;
 import org.bytedeco.llvm.global.LLVM;
 import tfc.llvmutil.LLVMBuilderRoot;
+import tfc.llvmutil.LLVMFunctionBuilder;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -13,15 +14,15 @@ public class ExpressionBuilder {
 
     LUAValue toLUA(LLVMBuilderRoot root, LLVMValueRef typeL, LLVMValueRef typeR, LLVMValueRef refOut) {
         // TODO: conjoin types
-        return new LUAValue(false, root.CONST_0B, refOut);
+        return new LUAValue(false, typeL, root.bitCast(refOut, root.LONG));
     }
 
     LUAValue toLUA(LLVMBuilderRoot root, LLVMValueRef typeOut, LLVMValueRef refOut) {
         // TODO: conjoin types
-        return new LUAValue(false, typeOut, refOut);
+        return new LUAValue(false, typeOut, root.bitCast(refOut, root.LONG));
     }
 
-    public LUAValue build(LLVMBuilderRoot builderRoot) {
+    public LUAValue build(LLVMFunctionBuilder function, LLVMBuilderRoot builderRoot) {
         for (int precedence = 0; precedence <= lastPrecedence; precedence++) {
             for (int i = 0; i < refs.size() - 1; i++) {
                 Operation op = ops.get(i);
@@ -30,8 +31,13 @@ public class ExpressionBuilder {
                     LUAValue valL = refs.remove(i);
                     LUAValue valR = refs.remove(i);
 
+                    valL = valL.coerce(function, builderRoot, valR);
+                    valR = valR.coerce(function, builderRoot, valL);
+
                     LLVMValueRef refL = valL.getData(builderRoot, builderRoot.DOUBLE);
                     LLVMValueRef refR = valR.getData(builderRoot, builderRoot.DOUBLE);
+//                    LLVMValueRef refL = valL.data;
+//                    LLVMValueRef refR = valR.data;
 
                     switch (op) {
                         case MUL -> {
@@ -71,42 +77,60 @@ public class ExpressionBuilder {
                             refs.add(i, toLUA(
                                     builderRoot,
                                     builderRoot.CONST_2B,
-                                    builderRoot.compareGE(refL, refR))
+                                    builderRoot.extend(
+                                            builderRoot.compareGE(refL, refR),
+                                            builderRoot.LONG
+                                    ))
                             );
                         }
                         case LE -> {
                             refs.add(i, toLUA(
                                     builderRoot,
                                     builderRoot.CONST_2B,
-                                    builderRoot.compareLE(refL, refR))
+                                    builderRoot.extend(
+                                            builderRoot.compareLE(refL, refR),
+                                            builderRoot.LONG
+                                    ))
                             );
                         }
                         case G -> {
                             refs.add(i, toLUA(
                                     builderRoot,
                                     builderRoot.CONST_2B,
-                                    builderRoot.compareG(refL, refR))
+                                    builderRoot.extend(
+                                            builderRoot.compareG(refL, refR),
+                                            builderRoot.LONG
+                                    ))
                             );
                         }
                         case L -> {
                             refs.add(i, toLUA(
                                     builderRoot,
                                     builderRoot.CONST_2B,
-                                    builderRoot.compareL(refL, refR))
+                                    builderRoot.extend(
+                                            builderRoot.compareL(refL, refR),
+                                            builderRoot.LONG
+                                    ))
                             );
                         }
                         case EE -> {
                             refs.add(i, toLUA(
                                     builderRoot,
                                     builderRoot.CONST_2B,
-                                    builderRoot.compareE(refL, refR))
+                                    builderRoot.extend(
+                                            builderRoot.compareE(refL, refR),
+                                            builderRoot.LONG
+                                    ))
                             );
                         }
                         case NE -> {
                             refs.add(i, toLUA(
                                     builderRoot,
                                     builderRoot.CONST_2B,
-                                    builderRoot.compareNE(refL, refR))
+                                    builderRoot.extend(
+                                            builderRoot.compareNE(refL, refR),
+                                            builderRoot.LONG
+                                    ))
                             );
                         }
                     }

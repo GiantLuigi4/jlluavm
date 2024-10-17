@@ -145,6 +145,18 @@ public class LLVMBuilderRoot {
 
     int load_indx = 0;
 
+    public LLVMValueRef extend(LLVMValueRef value, LLVMTypeRef typeExtend) {
+        return trackValue(LLVM.LLVMBuildZExt(
+                builder, value, typeExtend, "extend"
+        ));
+    }
+
+    public LLVMValueRef truncate(LLVMValueRef value, LLVMTypeRef typeTrunc) {
+        return trackValue(LLVM.LLVMBuildTrunc(
+                builder, value, typeTrunc, "truncate"
+        ));
+    }
+
     public LLVMValueRef loadDouble(double value) {
         return bitCast(
                 loadLong(Double.doubleToLongBits(value)),
@@ -445,8 +457,10 @@ public class LLVMBuilderRoot {
     }
 
     public enum CastOp {
-        SIGNED_INT_TO_FLOAT(38),
-        UNSIGNED_INT_TO_FLOAT(39),
+        SIGNED_INT_TO_FLOAT(LLVMSIToFP),
+        UNSIGNED_INT_TO_FLOAT(LLVMUIToFP),
+        FLOAT_TO_SIGNED_INT(LLVMFPToSI),
+        FLOAT_TO_UNSIGNED_INT(LLVMFPToUI),
         ;
 
         int id;
