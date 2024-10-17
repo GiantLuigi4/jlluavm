@@ -184,6 +184,31 @@ public class ExpressionBuilder {
         return root.getValue(root.LONG, out);
     }
 
+    public static LLVMValueRef bool_op(
+            LLVMFunctionBuilder function, LLVMBuilderRoot builderRoot,
+            LUAValue valL, LUAValue valR,
+            BiFunction<LUAValue, LUAValue, LLVMValueRef> build
+    ) {
+        LLVMValueRef typeL = valL.type;
+        LLVMValueRef typeR = valR.type;
+
+        LLVMBasicBlockRef handle = function.createBlock("handle_bool_op");
+        LLVMBasicBlockRef error = function.createBlock("error_bool_op");
+
+        builderRoot.conditionalJump(builderRoot.intCompareE(typeL, typeR), handle, error);
+
+        function.buildBlock(error);
+        ProtoJNI.insertThrow(builderRoot, LUAException.class, "NYI...");
+        // TODO: APPARENTLY
+        // if and is used on a data type that is not bool, it assumes that value to be true, unless both values are non bools, in which case it returns the second
+        // if or is used on a data type that is not bool, it returns the first non bool of the two
+        // this is because of logical shortcutting
+        // due to this, a function in the right side should also not run if the first condition means that the second one does not need to run to know the truth value
+
+        function.buildBlock(handle);
+        return builderRoot.extend(build.apply(valL, valR), builderRoot.LONG);
+    }
+
     public LUAValue build(LLVMFunctionBuilder function, LLVMBuilderRoot builderRoot) {
         for (int precedence = 0; precedence <= lastPrecedence; precedence++) {
             for (int i = 0; i < refs.size() - 1; i++) {
@@ -446,31 +471,6 @@ public class ExpressionBuilder {
             }
         }
         return refs.get(0);
-    }
-
-    public static LLVMValueRef bool_op(
-            LLVMFunctionBuilder function, LLVMBuilderRoot builderRoot,
-            LUAValue valL, LUAValue valR,
-            BiFunction<LUAValue, LUAValue, LLVMValueRef> build
-    ) {
-        LLVMValueRef typeL = valL.type;
-        LLVMValueRef typeR = valR.type;
-
-        LLVMBasicBlockRef handle = function.createBlock("handle_bool_op");
-        LLVMBasicBlockRef error = function.createBlock("error_bool_op");
-
-        builderRoot.conditionalJump(builderRoot.intCompareE(typeL, typeR), handle, error);
-
-        function.buildBlock(error);
-        ProtoJNI.insertThrow(builderRoot, LUAException.class, "NYI...");
-        // TODO: APPARENTLY
-        // if and is used on a data type that is not bool, it assumes that value to be true, unless both values are non bools, in which case it returns the second
-        // if or is used on a data type that is not bool, it returns the first non bool of the two
-        // this is because of logical shortcutting
-        // due to this, a function in the right side should also not run if the first condition means that the second one does not need to run to know the truth value
-
-        function.buildBlock(handle);
-        return builderRoot.extend(build.apply(valL, valR), builderRoot.LONG);
     }
 
     public void addValue(LUAValue ref) {
