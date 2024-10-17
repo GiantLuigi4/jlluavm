@@ -501,6 +501,10 @@ public class LLVMBuilderRoot {
         return trackValue(LLVM.LLVMBuildAnd(builder, left, right, "cond_and"));
     }
 
+    public LLVMValueRef or(LLVMValueRef left, LLVMValueRef right) {
+        return trackValue(LLVM.LLVMBuildOr(builder, left, right, "cond_and"));
+    }
+
     public LLVMValueRef not(LLVMValueRef value) {
         return trackValue(LLVM.LLVMBuildNot(builder, value, "not"));
     }

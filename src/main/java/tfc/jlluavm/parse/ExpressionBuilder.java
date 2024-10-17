@@ -3,6 +3,8 @@ package tfc.jlluavm.parse;
 import org.bytedeco.llvm.LLVM.LLVMBasicBlockRef;
 import org.bytedeco.llvm.LLVM.LLVMValueRef;
 import org.bytedeco.llvm.global.LLVM;
+import tfc.jlluavm.exec.err.LUAException;
+import tfc.jni.ProtoJNI;
 import tfc.llvmutil.LLVMBuilderRoot;
 import tfc.llvmutil.LLVMFunctionBuilder;
 
@@ -171,7 +173,7 @@ public class ExpressionBuilder {
         root.jump(end);
 
         builder.buildBlock(thrw);
-        root.unreachable();
+        ProtoJNI.insertThrow(root, LUAException.class, "Attempt to perform arithmetic on a", "TODO", "value");
 
         builder.buildBlock(end);
 
@@ -194,8 +196,7 @@ public class ExpressionBuilder {
                     valL = valL.coerce(function, builderRoot, valR);
                     valR = valR.coerce(function, builderRoot, valL);
 
-                    LLVMValueRef refL = valL.getData(builderRoot, builderRoot.DOUBLE);
-                    LLVMValueRef refR = valR.getData(builderRoot, builderRoot.DOUBLE);
+                    LLVMValueRef CONST_BOOL_TYPE = builderRoot.CONST_2B;
 
                     switch (op) {
                         case MUL -> {
@@ -298,7 +299,7 @@ public class ExpressionBuilder {
                         case GE -> {
                             refs.add(i, toLUA(
                                     builderRoot,
-                                    valL.type,
+                                    CONST_BOOL_TYPE,
                                     comp_op(
                                             function, builderRoot,
                                             valL, valR,
@@ -316,7 +317,7 @@ public class ExpressionBuilder {
                         case LE -> {
                             refs.add(i, toLUA(
                                     builderRoot,
-                                    valL.type,
+                                    CONST_BOOL_TYPE,
                                     comp_op(
                                             function, builderRoot,
                                             valL, valR,
@@ -334,7 +335,7 @@ public class ExpressionBuilder {
                         case G -> {
                             refs.add(i, toLUA(
                                     builderRoot,
-                                    valL.type,
+                                    CONST_BOOL_TYPE,
                                     comp_op(
                                             function, builderRoot,
                                             valL, valR,
@@ -352,7 +353,7 @@ public class ExpressionBuilder {
                         case L -> {
                             refs.add(i, toLUA(
                                     builderRoot,
-                                    valL.type,
+                                    CONST_BOOL_TYPE,
                                     comp_op(
                                             function, builderRoot,
                                             valL, valR,
@@ -370,7 +371,7 @@ public class ExpressionBuilder {
                         case EE -> {
                             refs.add(i, toLUA(
                                     builderRoot,
-                                    valL.type,
+                                    CONST_BOOL_TYPE,
                                     comp_op(
                                             function, builderRoot,
                                             valL, valR,
@@ -388,7 +389,7 @@ public class ExpressionBuilder {
                         case NE -> {
                             refs.add(i, toLUA(
                                     builderRoot,
-                                    valL.type,
+                                    CONST_BOOL_TYPE,
                                     comp_op(
                                             function, builderRoot,
                                             valL, valR,
@@ -403,6 +404,40 @@ public class ExpressionBuilder {
                                     )
                             ));
                         }
+
+                        case AND -> {
+                            refs.add(i, toLUA(
+                                    builderRoot,
+                                    CONST_BOOL_TYPE,
+                                    bool_op(
+                                            function, builderRoot,
+                                            valL, valR,
+                                            (left, right) -> {
+                                                return builderRoot.and(
+                                                        builderRoot.truncate(left.data, builderRoot.BIT),
+                                                        builderRoot.truncate(right.data, builderRoot.BIT)
+                                                );
+                                            }
+                                    )
+                            ));
+                        }
+                        case OR -> {
+                            refs.add(i, toLUA(
+                                    builderRoot,
+                                    CONST_BOOL_TYPE,
+                                    bool_op(
+                                            function, builderRoot,
+                                            valL, valR,
+                                            (left, right) -> {
+                                                return builderRoot.or(
+                                                        builderRoot.truncate(left.data, builderRoot.BIT),
+                                                        builderRoot.truncate(right.data, builderRoot.BIT)
+                                                );
+                                            }
+                                    )
+                            ));
+                        }
+
                         default -> throw new RuntimeException("Unexpected operator: " + op.symb);
                     }
 
@@ -411,6 +446,31 @@ public class ExpressionBuilder {
             }
         }
         return refs.get(0);
+    }
+
+    public static LLVMValueRef bool_op(
+            LLVMFunctionBuilder function, LLVMBuilderRoot builderRoot,
+            LUAValue valL, LUAValue valR,
+            BiFunction<LUAValue, LUAValue, LLVMValueRef> build
+    ) {
+        LLVMValueRef typeL = valL.type;
+        LLVMValueRef typeR = valR.type;
+
+        LLVMBasicBlockRef handle = function.createBlock("handle_bool_op");
+        LLVMBasicBlockRef error = function.createBlock("error_bool_op");
+
+        builderRoot.conditionalJump(builderRoot.intCompareE(typeL, typeR), handle, error);
+
+        function.buildBlock(error);
+        ProtoJNI.insertThrow(builderRoot, LUAException.class, "NYI...");
+        // TODO: APPARENTLY
+        // if and is used on a data type that is not bool, it assumes that value to be true, unless both values are non bools, in which case it returns the second
+        // if or is used on a data type that is not bool, it returns the first non bool of the two
+        // this is because of logical shortcutting
+        // due to this, a function in the right side should also not run if the first condition means that the second one does not need to run to know the truth value
+
+        function.buildBlock(handle);
+        return builderRoot.extend(build.apply(valL, valR), builderRoot.LONG);
     }
 
     public void addValue(LUAValue ref) {
@@ -426,12 +486,18 @@ public class ExpressionBuilder {
     public enum Operation {
         EXP('^', 0),
         NOT("not", 1, true), LEN('#', 1, true),
-        MUL('*', 2), DIV('/', 2),
+        MUL('*', 2), DIV('/', 2), MOD('%', 2),
         ADD('+', 3), SUB('-', 3, true),
 
-        LE("<=", 4), GE(">=", 4),
-        L('<', 4), G('>', 4),
-        EE("==", 4), NE("~=", 4);
+        CAT("..", 4),
+
+        LE("<=", 5), GE(">=", 5),
+        L('<', 5), G('>', 5),
+        EE("==", 5), NE("~=", 5),
+
+        AND("and", 6),
+        OR("or", 7),
+        ;
 
         public final String symb;
         public final int precedence;
@@ -506,6 +572,12 @@ public class ExpressionBuilder {
                                 null, null,
                                 "__unm"
                         )
+                );
+            }
+            case NOT -> {
+                return new LUAValue(
+                        luaValue.type,
+                        root.extend(root.not(root.truncate(luaValue.data, root.BIT)), root.LONG)
                 );
             }
             default -> throw new RuntimeException();

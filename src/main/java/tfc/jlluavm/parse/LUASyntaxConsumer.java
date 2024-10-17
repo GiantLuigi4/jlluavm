@@ -193,6 +193,12 @@ public class LUASyntaxConsumer {
                             Integer.parseInt(tokenStream.current().text.substring(1)) + 2
                     )
             );
+        } else if (tokenStream.current().text.equals("true")) {
+            return CONST_TRUE;
+        } else if (tokenStream.current().text.equals("false")) {
+            return CONST_FALSE;
+        } else if (tokenStream.current().text.equals("nil")) {
+            return CONST_NIL;
         } else if (Resolver.nextThing(tokenStream, 0) == Resolver.ThingType.OPERATION) {
             // assume it's a unary operation
             String text = tokenStream.current().text;
@@ -226,12 +232,6 @@ public class LUASyntaxConsumer {
                 builder.addValue(acceptSingleValue(tokenStream));
             }
             return builder.build(functionBuilder, root);
-        } else if (tokenStream.current().text.equals("true")) {
-            return CONST_TRUE;
-        } else if (tokenStream.current().text.equals("false")) {
-            return CONST_FALSE;
-        } else if (tokenStream.current().text.equals("nil")) {
-            return CONST_NIL;
         }
         throw new RuntimeException("huh?");
     }

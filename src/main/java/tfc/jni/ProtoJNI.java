@@ -327,4 +327,9 @@ public class ProtoJNI {
     public static native long getInstanceMethodID(Class<?> clz, String name, String signature);
 
     public static native long callStaticVoid(Class<?> clz, long methodID, String arg);
+
+    public static void insertThrow(LLVMBuilderRoot root, Class<?> exceptionClass, Object... text) {
+        // TODO:
+        root.unreachable();
+    }
 }

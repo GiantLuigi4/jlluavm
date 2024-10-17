@@ -24,7 +24,7 @@ public class Test {
             BufferedStream<LUAToken> tokenStream = tokenizer.tokenStream("""
                     varA = 3
                     
-                    if -!0 ~= 20
+                    if (true or false and false or false)
                     then
                         varA = varA + 0.5
                     end
