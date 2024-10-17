@@ -394,9 +394,31 @@ public class LLVMBuilderRoot {
 
         LLVMAddScalarizerPass(pass);
 
+//        for (int i = 0; i < loopEliminationFactor; i++) {
+//            LLVMAddLoopUnrollPass(pass);
+//            LLVMAddCFGSimplificationPass(pass);
+//        }
+
         for (int i = 0; i < loopEliminationFactor; i++) {
+            LLVMAddCFGSimplificationPass(pass);
+//            LLVMAddAggressiveDCEPass(pass); // dead code elimination
+//            LLVMAddSimplifyLibCallsPass(pass);
+//            LLVMAddPartiallyInlineLibCallsPass(pass);
+//            LLVMAddEarlyCSEMemSSAPass(pass);
+//            LLVMAddEarlyCSEPass(pass);
+//            LLVMAddReassociatePass(pass);
+            LLVMAddPromoteMemoryToRegisterPass(pass);
+            LLVMAddLICMPass(pass);
+            LLVMAddLoopRotatePass(pass);
+//            LLVMAddLoopIdiomPass(pass);
+            LLVMAddInstructionCombiningPass(pass);
+//            LLVMAddScalarizerPass(pass);
+
             LLVMAddLoopUnrollPass(pass);
             LLVMAddCFGSimplificationPass(pass);
+
+            if (i != loopEliminationFactor - 1)
+                LLVMAddNewGVNPass(pass);
         }
 
 //        LLVMAddReassociatePass(pass);
@@ -448,6 +470,8 @@ public class LLVMBuilderRoot {
 //        LLVMAddInstructionCombiningPass(pass);
 //        LLVMAddCFGSimplificationPass(pass);
 //        LLVMAddNewGVNPass(pass);
+
+        LLVMAddCFGSimplificationPass(pass);
 
         return pass;
     }

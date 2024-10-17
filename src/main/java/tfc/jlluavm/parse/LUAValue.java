@@ -44,6 +44,7 @@ public class LUAValue {
         ptr = false;
     }
 
+    @Deprecated
     public LLVMValueRef getData(LLVMBuilderRoot root, LLVMTypeRef targetType) {
         return root.bitCast(data, targetType);
     }

@@ -1,5 +1,6 @@
 package tfc.jlluavm.parse;
 
+import org.bytedeco.llvm.LLVM.LLVMBasicBlockRef;
 import org.bytedeco.llvm.LLVM.LLVMValueRef;
 import org.bytedeco.llvm.global.LLVM;
 import tfc.llvmutil.LLVMBuilderRoot;
@@ -7,6 +8,8 @@ import tfc.llvmutil.LLVMFunctionBuilder;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.BiConsumer;
+import java.util.function.BiFunction;
 
 public class ExpressionBuilder {
     List<LUAValue> refs = new ArrayList<>();
@@ -20,6 +23,59 @@ public class ExpressionBuilder {
     LUAValue toLUA(LLVMBuilderRoot root, LLVMValueRef typeOut, LLVMValueRef refOut) {
         // TODO: conjoin types
         return new LUAValue(false, typeOut, root.bitCast(refOut, root.LONG));
+    }
+
+    public LLVMValueRef op(
+            LLVMFunctionBuilder builder, LLVMBuilderRoot root,
+            LUAValue left, LUAValue right,
+            BiFunction<LLVMValueRef, LLVMValueRef, LLVMValueRef> emitLong,
+            BiFunction<LLVMValueRef, LLVMValueRef, LLVMValueRef> emitDouble,
+            BiFunction<LLVMValueRef, LLVMValueRef, LLVMValueRef> emitBool,
+            BiFunction<LLVMValueRef, LLVMValueRef, LLVMValueRef> emitString,
+            String luaTableValueName
+    ) {
+        LLVMValueRef typeLeft = left.type;
+        LLVMValueRef typeRight = right.type;
+
+        LLVMBasicBlockRef hndlInt = builder.createBlock(luaTableValueName + "_iInt");
+        LLVMBasicBlockRef hndlFloat = builder.createBlock(luaTableValueName + "_iFloat");
+        LLVMBasicBlockRef cmpFloat = builder.createBlock(luaTableValueName + "_cmpFloat");
+        LLVMBasicBlockRef thrw = builder.createBlock(luaTableValueName + "_throw");
+        LLVMBasicBlockRef end = builder.createBlock(luaTableValueName + "_end_op");
+
+        LLVMValueRef out = root.alloca(root.LONG, luaTableValueName + "_result_buffer");
+        root.conditionalJump(root.intCompareE(typeLeft, root.CONST_0B), hndlInt, cmpFloat);
+
+        // TODO: funny story: metatables
+        builder.buildBlock(hndlInt);
+        root.setValue(
+                out,
+                root.bitCast(
+                        emitLong.apply(root.bitCast(left.data, root.LONG), root.bitCast(right.data, root.LONG)),
+                        root.LONG
+                )
+        );
+        root.jump(end);
+
+        builder.buildBlock(cmpFloat);
+        root.conditionalJump(root.intCompareE(typeLeft, root.CONST_1B), hndlFloat, thrw);
+
+        builder.buildBlock(hndlFloat);
+        root.setValue(
+                out,
+                root.bitCast(
+                        emitDouble.apply(root.bitCast(left.data, root.DOUBLE), root.bitCast(right.data, root.DOUBLE)),
+                        root.LONG
+                )
+        );
+        root.jump(end);
+
+        builder.buildBlock(thrw);
+        root.unreachable();
+
+        builder.buildBlock(end);
+
+        return root.getValue(root.LONG, out);
     }
 
     public LUAValue build(LLVMFunctionBuilder function, LLVMBuilderRoot builderRoot) {
@@ -36,8 +92,6 @@ public class ExpressionBuilder {
 
                     LLVMValueRef refL = valL.getData(builderRoot, builderRoot.DOUBLE);
                     LLVMValueRef refR = valR.getData(builderRoot, builderRoot.DOUBLE);
-//                    LLVMValueRef refL = valL.data;
-//                    LLVMValueRef refR = valR.data;
 
                     switch (op) {
                         case MUL -> {
@@ -45,32 +99,100 @@ public class ExpressionBuilder {
                                     builderRoot,
                                     valL.type,
                                     valR.type,
-                                    builderRoot.trackValue(LLVM.LLVMBuildFMul(builderRoot.direct(), refL, refR, builderRoot.nextDiscriminator("mul"))))
-                            );
+                                    op(
+                                            function, builderRoot,
+                                            valL, valR,
+                                            (left, right) -> {
+                                                return builderRoot.trackValue(LLVM.LLVMBuildMul(
+                                                        builderRoot.direct(),
+                                                        left, right, "int_add"
+                                                ));
+                                            },
+                                            (left, right) -> {
+                                                return builderRoot.trackValue(LLVM.LLVMBuildFMul(
+                                                        builderRoot.direct(),
+                                                        left, right, "float_add"
+                                                ));
+                                            },
+                                            null, null,
+                                            "add"
+                                    )
+                            ));
                         }
                         case DIV -> {
                             refs.add(i, toLUA(
                                     builderRoot,
                                     valL.type,
                                     valR.type,
-                                    builderRoot.trackValue(LLVM.LLVMBuildFDiv(builderRoot.direct(), refL, refR, builderRoot.nextDiscriminator("div"))))
-                            );
+                                    op(
+                                            function, builderRoot,
+                                            valL, valR,
+                                            (left, right) -> {
+                                                return builderRoot.trackValue(LLVM.LLVMBuildSDiv(
+                                                        builderRoot.direct(),
+                                                        left, right, "int_add"
+                                                ));
+                                            },
+                                            (left, right) -> {
+                                                return builderRoot.trackValue(LLVM.LLVMBuildFDiv(
+                                                        builderRoot.direct(),
+                                                        left, right, "float_add"
+                                                ));
+                                            },
+                                            null, null,
+                                            "add"
+                                    )
+                            ));
                         }
                         case ADD -> {
                             refs.add(i, toLUA(
                                     builderRoot,
                                     valL.type,
                                     valR.type,
-                                    builderRoot.trackValue(LLVM.LLVMBuildFAdd(builderRoot.direct(), refL, refR, builderRoot.nextDiscriminator("add"))))
-                            );
+                                    op(
+                                            function, builderRoot,
+                                            valL, valR,
+                                            (left, right) -> {
+                                                return builderRoot.trackValue(LLVM.LLVMBuildAdd(
+                                                        builderRoot.direct(),
+                                                        left, right, "int_add"
+                                                ));
+                                            },
+                                            (left, right) -> {
+                                                return builderRoot.trackValue(LLVM.LLVMBuildFAdd(
+                                                        builderRoot.direct(),
+                                                        left, right, "float_add"
+                                                ));
+                                            },
+                                            null, null,
+                                            "add"
+                                    )
+                            ));
                         }
                         case SUB -> {
                             refs.add(i, toLUA(
                                     builderRoot,
                                     valL.type,
                                     valR.type,
-                                    builderRoot.trackValue(LLVM.LLVMBuildFSub(builderRoot.direct(), refL, refR, builderRoot.nextDiscriminator("sub"))))
-                            );
+                                    op(
+                                            function, builderRoot,
+                                            valL, valR,
+                                            (left, right) -> {
+                                                return builderRoot.trackValue(LLVM.LLVMBuildSub(
+                                                        builderRoot.direct(),
+                                                        left, right, "int_add"
+                                                ));
+                                            },
+                                            (left, right) -> {
+                                                return builderRoot.trackValue(LLVM.LLVMBuildFSub(
+                                                        builderRoot.direct(),
+                                                        left, right, "float_add"
+                                                ));
+                                            },
+                                            null, null,
+                                            "add"
+                                    )
+                            ));
                         }
 
                         case GE -> {
