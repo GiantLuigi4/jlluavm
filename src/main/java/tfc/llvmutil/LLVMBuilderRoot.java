@@ -5,6 +5,7 @@ import org.bytedeco.javacpp.Pointer;
 import org.bytedeco.javacpp.PointerPointer;
 import org.bytedeco.llvm.LLVM.*;
 import org.bytedeco.llvm.global.LLVM;
+import tfc.jlluavm.parse.LUAValue;
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -262,12 +263,24 @@ public class LLVMBuilderRoot {
         return trackValue(LLVM.LLVMBuildFCmp(builder, LLVM.LLVMRealOLE, lh, rh, nextDiscriminator("comp")));
     }
 
+    public LLVMValueRef intCompareLE(LLVMValueRef lh, LLVMValueRef rh) {
+        return trackValue(LLVM.LLVMBuildICmp(builder, LLVMIntSLE, lh, rh, nextDiscriminator("comp")));
+    }
+
     public LLVMValueRef compareL(LLVMValueRef lh, LLVMValueRef rh) {
         return trackValue(LLVM.LLVMBuildFCmp(builder, LLVMRealOLT, lh, rh, nextDiscriminator("comp")));
     }
 
+    public LLVMValueRef intCompareL(LLVMValueRef lh, LLVMValueRef rh) {
+        return trackValue(LLVM.LLVMBuildICmp(builder, LLVMIntSLT, lh, rh, nextDiscriminator("comp")));
+    }
+
     public LLVMValueRef compareG(LLVMValueRef lh, LLVMValueRef rh) {
         return trackValue(LLVM.LLVMBuildFCmp(builder, LLVMRealOGT, lh, rh, nextDiscriminator("comp")));
+    }
+
+    public LLVMValueRef intCompareG(LLVMValueRef lh, LLVMValueRef rh) {
+        return trackValue(LLVM.LLVMBuildICmp(builder, LLVMIntSGT, lh, rh, nextDiscriminator("comp")));
     }
 
     public LLVMValueRef compareE(LLVMValueRef lh, LLVMValueRef rh) {
@@ -282,8 +295,16 @@ public class LLVMBuilderRoot {
         return trackValue(LLVM.LLVMBuildFCmp(builder, LLVMRealONE, lh, rh, nextDiscriminator("comp")));
     }
 
+    public LLVMValueRef intCompareNE(LLVMValueRef lh, LLVMValueRef rh) {
+        return trackValue(LLVM.LLVMBuildICmp(builder, LLVMIntNE, lh, rh, nextDiscriminator("comp")));
+    }
+
     public LLVMValueRef compareGE(LLVMValueRef lh, LLVMValueRef rh) {
         return trackValue(LLVM.LLVMBuildFCmp(builder, LLVM.LLVMRealOGE, lh, rh, nextDiscriminator("comp")));
+    }
+
+    public LLVMValueRef intCompareGE(LLVMValueRef lh, LLVMValueRef rh) {
+        return trackValue(LLVM.LLVMBuildICmp(builder, LLVMIntSGE, lh, rh, nextDiscriminator("comp")));
     }
 
     public void jump(LLVMBasicBlockRef start) {
@@ -478,6 +499,18 @@ public class LLVMBuilderRoot {
 
     public LLVMValueRef and(LLVMValueRef left, LLVMValueRef right) {
         return trackValue(LLVM.LLVMBuildAnd(builder, left, right, "cond_and"));
+    }
+
+    public LLVMValueRef not(LLVMValueRef value) {
+        return trackValue(LLVM.LLVMBuildNot(builder, value, "not"));
+    }
+
+    public LLVMValueRef intNegate(LLVMValueRef value) {
+        return trackValue(LLVM.LLVMBuildNeg(builder, value, "negate"));
+    }
+
+    public LLVMValueRef negate(LLVMValueRef value) {
+        return trackValue(LLVM.LLVMBuildFNeg(builder, value, "negate"));
     }
 
     public enum CastOp {

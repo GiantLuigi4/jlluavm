@@ -24,10 +24,12 @@ public class Test {
             BufferedStream<LUAToken> tokenStream = tokenizer.tokenStream("""
                     varA = 3
                     
-                    if !0 > 20
+                    if -!0 ~= 20
                     then
                         varA = varA + 0.5
                     end
+                    
+                    varA = varA + 3
                     
                     return varA
                     """);

@@ -193,6 +193,15 @@ public class LUASyntaxConsumer {
                             Integer.parseInt(tokenStream.current().text.substring(1)) + 2
                     )
             );
+        } else if (Resolver.nextThing(tokenStream, 0) == Resolver.ThingType.OPERATION) {
+            // assume it's a unary operation
+            String text = tokenStream.current().text;
+            tokenStream.advance();
+            LUAValue val = acceptSingleValue(tokenStream);
+            return ExpressionBuilder.computeUnary(
+                    functionStack.peek(), root,
+                    ExpressionBuilder.Operation.forName(text), val
+            );
         }
         return null;
     }
@@ -212,7 +221,7 @@ public class LUASyntaxConsumer {
             builder.addValue(ref);
             while (Resolver.nextThing(tokenStream, 1) == Resolver.ThingType.OPERATION) {
                 tokenStream.advance();
-                builder.addOperation(tokenStream.current().text);
+                builder.addOperation(functionBuilder, root, tokenStream.current().text);
                 tokenStream.advance();
                 builder.addValue(acceptSingleValue(tokenStream));
             }
@@ -414,7 +423,7 @@ public class LUASyntaxConsumer {
         }
 
         long addr = LLVM.LLVMGetFunctionAddress(engine, functionEntry.getName());
-        long argV = Double.doubleToLongBits(21);
+        long argV = Double.doubleToLongBits(-20);
 
         System.out.println("Running entry() with MCJIT...");
         long bp = MemoryUtil.nmemAlloc(1);

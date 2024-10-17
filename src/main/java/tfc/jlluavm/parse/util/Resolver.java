@@ -52,7 +52,7 @@ public class Resolver {
             case "break" -> ThingType.BREAK;
             case "do" -> ThingType.DO;
             case "*", "+", "-", "/", "^", "//", "not", "#", "~",
-                    "<=", "==", ">=", "!=", "<", ">" -> ThingType.OPERATION;
+                    "<=", "==", ">=", "~=", "<", ">" -> ThingType.OPERATION;
             default -> ThingType.GENERIC;
         };
     }
