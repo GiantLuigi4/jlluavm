@@ -48,6 +48,7 @@ public class LUAValue {
         return root.bitCast(data, targetType);
     }
 
+    // TODO: find a way to prevent type coercion spamming when types can established ahead of time to already be the same
     public LUAValue coerce(LLVMFunctionBuilder builder, LLVMBuilderRoot root, LUAValue other) {
         LLVMValueRef typeOut = root.alloca(root.BYTE, "tmp_type");
         root.setValue(typeOut, type);
