@@ -13,8 +13,10 @@ public class LLVMStructBuilder {
     LLVMTypeRef struct;
     List<LLVMTypeRef> bodyElems = new ArrayList<>();
     PointerPointer<LLVMTypeRef> elemsPtr;
+    LLVMBuilderRoot root;
 
-    public LLVMStructBuilder(LLVMTypeRef struct) {
+    public LLVMStructBuilder(LLVMBuilderRoot root, LLVMTypeRef struct) {
+        this.root = root;
         this.struct = struct;
     }
 
@@ -41,7 +43,7 @@ public class LLVMStructBuilder {
     }
 
     public LLVMTypeRef pointerType(int addrSpace) {
-        return LLVM.LLVMPointerType(struct, addrSpace);
+        return root.trackValue(LLVM.LLVMPointerType(struct, addrSpace));
     }
 
     public LLVMTypeRef type() {

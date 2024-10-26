@@ -15,7 +15,6 @@ import java.util.Set;
 import static org.bytedeco.llvm.global.LLVM.*;
 
 public class LLVMBuilderRoot {
-
     static {
         LLVMInitializeNativeTarget();
         LLVMInitializeNativeAsmPrinter();
@@ -247,6 +246,10 @@ public class LLVMBuilderRoot {
         return trackValue(LLVM.LLVMBuildAlloca(builder, type, nextDiscriminator(label)));
     }
 
+    public LLVMValueRef malloc(LLVMTypeRef type, String label) {
+        return trackValue(LLVM.LLVMBuildMalloc(builder, type, label));
+    }
+
     public LLVMValueRef setValue(LLVMValueRef ptr, LLVMValueRef value) {
         return trackValue(LLVM.LLVMBuildStore(builder, value, ptr));
     }
@@ -321,10 +324,11 @@ public class LLVMBuilderRoot {
 
     public LLVMStructBuilder createStruct(String name) {
         return new LLVMStructBuilder(
-                LLVM.LLVMStructCreateNamed(
+                this,
+                trackValue(LLVM.LLVMStructCreateNamed(
                         context,
                         name
-                )
+                ))
         );
     }
 
@@ -515,6 +519,15 @@ public class LLVMBuilderRoot {
 
     public LLVMValueRef negate(LLVMValueRef value) {
         return trackValue(LLVM.LLVMBuildFNeg(builder, value, "negate"));
+    }
+
+    public LLVMValueRef string(String text, boolean nullTerminate) {
+        LLVMValueRef value = LLVM.LLVMBuildGlobalString(builder, text, "string_const");
+//        return trackValue(LLVM.LLVMConstStringInContext(
+//                context, className,
+//                className.length(), nullTerminate ? 0 : 1
+//        ));
+        return trackValue(value);
     }
 
     public enum CastOp {

@@ -7,6 +7,7 @@ import org.bytedeco.llvm.global.LLVM;
 import org.lwjgl.system.Library;
 import org.lwjgl.system.MemoryUtil;
 import tfc.jlluavm.exec.StandardFunctions;
+import tfc.jni.JNIHelper;
 import tfc.jni.ProtoJNI;
 import tfc.llvmutil.LLVMBuilderRoot;
 import tfc.llvmutil.LLVMFunctionBuilder;
@@ -17,6 +18,7 @@ import tfc.jlluavm.parse.util.Resolver;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.List;
 
 import static org.bytedeco.llvm.global.LLVM.*;
 
@@ -38,6 +40,8 @@ public class LUASyntaxConsumer {
     LUAValue CONST_1;
     LUAValue CONST_FALSE;
     LUAValue CONST_TRUE;
+
+    JNIHelper jniHelper;
 
     public LUASyntaxConsumer() {
         root = new LLVMBuilderRoot(
@@ -63,6 +67,8 @@ public class LUASyntaxConsumer {
         CONST_NIL = new LUAValue(root, 4, root.CONST_0L);
         CONST_FALSE = new LUAValue(root, 2, root.CONST_0L);
         CONST_TRUE = new LUAValue(root, 2, root.CONST_1L);
+
+        jniHelper = new JNIHelper(root);
     }
 
     private void pushScope() {
@@ -385,6 +391,95 @@ public class LUASyntaxConsumer {
         throw new RuntimeException("NYI");
     }
 
+    protected LUAValue makeJNICall(
+            LLVMBuilderRoot root,
+            LLVMValueRef jniEnv,
+            String className,
+            long methodHandle,
+            List<LUAValue> params
+    ) {
+        LLVMValueRef typeBuf = root.alloca(root.BYTE, "call_out_type");
+        LLVMValueRef valueBuf = root.alloca(root.LONG, "call_out_value");
+        params.add(0, new LUAValue(
+                true,
+                typeBuf, valueBuf
+        ));
+        List<LLVMValueRef> paramsLLVM = new ArrayList<>();
+        for (LUAValue param : params) {
+            if (param.ptr) {
+                paramsLLVM.add(root.ptrCast(param.type, root.LONG));
+                paramsLLVM.add(root.ptrCast(param.data, root.LONG));
+            } else {
+                paramsLLVM.add(param.type);
+                paramsLLVM.add(param.data);
+            }
+        }
+
+        jniHelper.getClass(
+                jniEnv,
+                root.string(className, true)
+        );
+
+//        jniHelper.makeVoidCall(
+//                jniEnv, jniHelper.getClass(
+//                        jniEnv,
+//                        root.string(className, true)
+//                ),
+//                root.loadLong(methodHandle), paramsLLVM
+//        );
+
+        return new LUAValue(root.getValue(root.BYTE, typeBuf), root.getValue(root.LONG, valueBuf));
+    }
+
+    private void acceptCall(BufferedStream<LUAToken> tokenStream) {
+        if (tokenStream.current().text.equals("print")) {
+            tokenStream.advance(2);
+            List<LUAValue> values = new ArrayList<>();
+            while (!tokenStream.current().text.equals(")")) {
+                values.add(acceptValue(tokenStream));
+                tokenStream.advance();
+            }
+            // TODO: get value from scope
+            long JNI = ProtoJNI.getJNIEnv();
+            long handle = ProtoJNI.getStaticMethodID(StandardFunctions.class, "print", "(JJBJ)V");
+
+            LLVMValueRef jniPtr = root.alloca(root.LONG, "jni");
+            root.setValue(jniPtr, root.loadLong(JNI));
+            jniPtr = root.bitCast(jniPtr, jniHelper.envPtrPtr);
+
+            makeJNICall(
+                    root,
+                    jniPtr,
+                    "tfc/jlluavm/exec/StandardFunctions",
+                    handle,
+                    values
+            );
+
+            System.out.println(handle);
+//            throw new RuntimeException("NYI");
+        } else {
+            throw new RuntimeException("Calls not supported yet; hardcoded to only a few select methods");
+        }
+    }
+
+    public void acceptCurrent(BufferedStream<LUAToken> tokenStream) {
+        if (tokenStream.current() == null) return;
+
+        Resolver.ThingType currentType = Resolver.nextThing(tokenStream);
+        System.out.println(" EMIT: " + currentType.toString());
+        switch (currentType) {
+            case FOR_LOOP -> acceptFor(tokenStream);
+            case IF -> acceptIf(tokenStream);
+            case FUNCTION -> acceptFunction(tokenStream);
+            case VARIABLE -> acceptVariable(tokenStream);
+            case RETURN -> acceptReturn(tokenStream);
+            case DO -> acceptDo(tokenStream);
+            case BREAK -> acceptBreak(tokenStream);
+            case CALL -> acceptCall(tokenStream);
+            default -> System.out.println("TOKEN: " + tokenStream.current().text);
+        }
+    }
+
     public void finish() {
         popScope();
 
@@ -405,7 +500,7 @@ public class LUASyntaxConsumer {
 
         LLVMPassManagerRef pass = root.standardOptimizer(loopEliminationFactor);
         long nt = System.nanoTime();
-        LLVMRunPassManager(pass, root.getModule());
+//        LLVMRunPassManager(pass, root.getModule());
         long nt1 = System.nanoTime();
         System.out.println("Optimization took: " + (nt1 - nt) + " ns");
 
@@ -453,35 +548,6 @@ public class LUASyntaxConsumer {
             case 0 -> System.out.println("As Double: " + Double.longBitsToDouble(result));
             case 1 -> System.out.println("As Long: " + result);
             default -> throw new RuntimeException("not a directly displayable type");
-        }
-    }
-
-    private void acceptCall(BufferedStream<LUAToken> tokenStream) {
-        if (tokenStream.current().text.equals("print")) {
-            // TODO: get value from scope
-            long handle = ProtoJNI.getStaticMethodID(StandardFunctions.class, "print", "(BJJ)V");
-            System.out.println(handle);
-            throw new RuntimeException("NYI");
-        } else {
-            throw new RuntimeException("Calls not supported yet; hardcoded to only a few select methods");
-        }
-    }
-
-    public void acceptCurrent(BufferedStream<LUAToken> tokenStream) {
-        if (tokenStream.current() == null) return;
-
-        Resolver.ThingType currentType = Resolver.nextThing(tokenStream);
-        System.out.println(" EMIT: " + currentType.toString());
-        switch (currentType) {
-            case FOR_LOOP -> acceptFor(tokenStream);
-            case IF -> acceptIf(tokenStream);
-            case FUNCTION -> acceptFunction(tokenStream);
-            case VARIABLE -> acceptVariable(tokenStream);
-            case RETURN -> acceptReturn(tokenStream);
-            case DO -> acceptDo(tokenStream);
-            case BREAK -> acceptBreak(tokenStream);
-            case CALL -> acceptCall(tokenStream);
-            default -> System.out.println("TOKEN: " + tokenStream.current().text);
         }
     }
 }

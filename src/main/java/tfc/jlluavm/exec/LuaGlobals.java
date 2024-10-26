@@ -9,4 +9,6 @@ public class LuaGlobals {
     // 4: table
     // 5: function
     // 6: jni function
+    // 7: local function (function which relies on local variables)
+    // 8: nil
 }

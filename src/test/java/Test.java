@@ -34,6 +34,8 @@ public class Test {
                     
                     varA = varA + 3
                     
+                    print(varA)
+                    
                     return varA
                     """);
 
